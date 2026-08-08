@@ -126,7 +126,13 @@ public class InventoryRequirementsManager {
     }
 
     public void requirementsInventoryCancel(InventoryPlayer inventoryPlayer){
-        inventoryPlayer.setInventoryName(inventoryPlayer.getPreviousInventoryName());
+        String previousInventory = inventoryPlayer.removePreviousInventoryName();
+        if(previousInventory == null || inventoryManager.getInventory(previousInventory) == null){
+            inventoryPlayer.getPlayer().closeInventory();
+            return;
+        }
+
+        inventoryPlayer.setInventoryName(previousInventory);
         inventoryPlayer.setKitName(null);
         inventoryManager.openInventory(inventoryPlayer);
     }

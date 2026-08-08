@@ -120,6 +120,28 @@ public class PlayerData {
         return creating;
     }
 
+    public boolean setKitArrangement(String kitName, KitArrangement arrangement){
+        PlayerDataKit playerDataKit = getKit(kitName);
+        boolean creating = false;
+        if(playerDataKit == null){
+            playerDataKit = new PlayerDataKit(kitName);
+            kits.add(playerDataKit);
+            creating = true;
+        }
+
+        playerDataKit.setArrangement(arrangement);
+        return creating;
+    }
+
+    public KitArrangement getKitArrangement(String kitName){
+        PlayerDataKit playerDataKit = getKit(kitName);
+        if(playerDataKit == null){
+            return null;
+        }else{
+            return playerDataKit.getArrangement();
+        }
+    }
+
     public boolean getKitHasBought(String kitName){
         PlayerDataKit playerDataKit = getKit(kitName);
         if(playerDataKit == null){

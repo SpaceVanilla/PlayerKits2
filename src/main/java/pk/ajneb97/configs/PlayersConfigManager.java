@@ -4,6 +4,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.scheduler.BukkitRunnable;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.model.CommonConfig;
+import pk.ajneb97.model.KitArrangement;
 import pk.ajneb97.model.PlayerData;
 import pk.ajneb97.model.PlayerDataKit;
 import pk.ajneb97.model.internal.GenericCallback;
@@ -45,11 +46,13 @@ public class PlayersConfigManager extends DataFolderConfigManager{
                             long cooldown = config.getLong("kits." + key + ".cooldown");
                             boolean oneTime = config.getBoolean("kits." + key + ".one_time");
                             boolean bought = config.getBoolean("kits." + key + ".bought");
+                            String arrangement = config.getString("kits." + key + ".arrangement");
 
                             PlayerDataKit playerDataKit = new PlayerDataKit(key);
                             playerDataKit.setCooldown(cooldown);
                             playerDataKit.setOneTime(oneTime);
                             playerDataKit.setBought(bought);
+                            playerDataKit.setArrangement(KitArrangement.fromText(arrangement));
 
                             playerDataKits.add(playerDataKit);
                         }
@@ -84,6 +87,10 @@ public class PlayersConfigManager extends DataFolderConfigManager{
             config.set("kits."+kitName+".cooldown",playerDataKit.getCooldown());
             config.set("kits."+kitName+".one_time",playerDataKit.isOneTime());
             config.set("kits."+kitName+".bought",playerDataKit.isBought());
+            KitArrangement arrangement = playerDataKit.getArrangement();
+            if(arrangement != null){
+                config.set("kits."+kitName+".arrangement",arrangement.toText());
+            }
         }
 
         playerConfig.saveConfig();

@@ -21,6 +21,8 @@ public class MainConfigManager {
     private boolean closeInventoryOnClaim;
     private boolean claimKitShortCommand;
     private boolean kitPreviewRequiresKitPermission;
+    private boolean kitArrangement;
+    private boolean kitArrangementClaimOrder;
     private boolean newKitDefaultSaveModeOriginal;
     private String firstJoinKit;
     private String newKitDefaultInventory;
@@ -41,6 +43,8 @@ public class MainConfigManager {
         kitPreview = config.getBoolean("kit_preview");
         closeInventoryOnClaim = config.getBoolean("close_inventory_on_claim");
         kitPreviewRequiresKitPermission = config.getBoolean("kit_preview_requires_kit_permission");
+        kitArrangement = config.getBoolean("kit_arrangement");
+        kitArrangementClaimOrder = config.getBoolean("kit_arrangement_claim_order");
         firstJoinKit = config.getString("first_join_kit");
         newKitDefaultInventory = config.getString("new_kit_default_inventory");
         isMySQL = config.getBoolean("mysql_database.enabled");
@@ -81,6 +85,11 @@ public class MainConfigManager {
                 getConfig().set("new_kit_default_save_mode_original", true);
                 configFile.saveConfig();
             }
+            if(!text.contains("kit_arrangement:")){
+                getConfig().set("kit_arrangement", true);
+                getConfig().set("kit_arrangement_claim_order", true);
+                configFile.saveConfig();
+            }
         }catch(IOException e){
             e.printStackTrace();
         }
@@ -100,6 +109,14 @@ public class MainConfigManager {
 
     public boolean isKitPreviewRequiresKitPermission() {
         return kitPreviewRequiresKitPermission;
+    }
+
+    public boolean isKitArrangement() {
+        return kitArrangement;
+    }
+
+    public boolean isKitArrangementClaimOrder() {
+        return kitArrangementClaimOrder;
     }
 
     public String getFirstJoinKit() {

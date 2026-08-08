@@ -10,11 +10,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.MainConfigManager;
 import pk.ajneb97.model.Kit;
-import pk.ajneb97.model.KitAction;
 import pk.ajneb97.model.internal.GiveKitInstructions;
 import pk.ajneb97.model.internal.KitPosition;
 import pk.ajneb97.model.internal.KitVariable;
 import pk.ajneb97.model.internal.PlayerKitsMessageResult;
+import pk.ajneb97.model.inventory.ArrangeSession;
 import pk.ajneb97.model.inventory.InventoryPlayer;
 import pk.ajneb97.model.inventory.ItemKitInventory;
 import pk.ajneb97.model.inventory.KitInventory;
@@ -31,10 +31,12 @@ public class InventoryManager {
     private ArrayList<KitInventory> inventories;
     private ArrayList<InventoryPlayer> players;
     private InventoryRequirementsManager inventoryRequirementsManager;
+    private InventoryArrangeManager inventoryArrangeManager;
     public InventoryManager(PlayerKits2 plugin){
         this.plugin = plugin;
         this.players = new ArrayList<>();
         this.inventoryRequirementsManager = new InventoryRequirementsManager(plugin,this);
+        this.inventoryArrangeManager = new InventoryArrangeManager(plugin,this);
     }
 
     public ArrayList<InventoryPlayer> getPlayers() {
@@ -47,6 +49,10 @@ public class InventoryManager {
 
     public InventoryRequirementsManager getInventoryRequirementsManager() {
         return inventoryRequirementsManager;
+    }
+
+    public InventoryArrangeManager getInventoryArrangeManager() {
+        return inventoryArrangeManager;
     }
 
     public void setInventories(ArrayList<KitInventory> inventories) {
@@ -80,11 +86,13 @@ public class InventoryManager {
     }
 
     public void openInventory(InventoryPlayer inventoryPlayer){
-        KitInventory kitInventory = getInventory(inventoryPlayer.getInventoryName());
+        String inventoryName = inventoryPlayer.getInventoryName();
+        KitInventory kitInventory = getInventory(inventoryName);
         MainConfigManager mainConfigManager = plugin.getConfigsManager().getMainConfigManager();
 
         String title = kitInventory.getTitle();
-        if(inventoryPlayer.getInventoryName().equals("buy_requirements_inventory") || inventoryPlayer.getInventoryName().equals("preview_inventory")){
+        if(inventoryPlayer.getKitName() != null && (inventoryName.equals("buy_requirements_inventory")
+                || inventoryName.equals("preview_inventory") || inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME))){
             title = title.replace("%kit%",inventoryPlayer.getKitName());
         }
         Inventory inv;
@@ -111,15 +119,21 @@ public class InventoryManager {
 
                 ItemStack item = kitItemManager.createItemFromKitItem(itemInventory.getItem(),inventoryPlayer.getPlayer(),null);
 
-                if(inventoryPlayer.getInventoryName().equals("buy_requirements_inventory")){
+                if(inventoryName.equals("buy_requirements_inventory")){
                     inventoryRequirementsManager.configureRequirementsItem(item,inventoryPlayer.getKitName(),inventoryPlayer.getPlayer());
                     if(type != null){
                         item = ItemUtils.setTagStringItem(plugin,item, "playerkits_buy", type);
                     }
+                }else if(inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME) && type != null){
+                    item = ItemUtils.setTagStringItem(plugin,item, "playerkits_arrange", type);
                 }
 
                 String openInventory = itemInventory.getOpenInventory();
                 if(openInventory != null) {
+                    if(openInventory.equals(InventoryArrangeManager.INVENTORY_NAME) && !inventoryArrangeManager.isEnabled()){
+                        //The item to open the arrange inventory is hidden if the feature is disabled.
+                        continue;
+                    }
                     item = ItemUtils.setTagStringItem(plugin,item, "playerkits_open_inventory", openInventory);
                 }
                 item = setItemActions(itemInventory,item);
@@ -129,12 +143,17 @@ public class InventoryManager {
         }
 
         //Special items for some inventories
-        if(inventoryPlayer.getInventoryName().equals("preview_inventory")){
-            setKitPreviewItems(inv,inventoryPlayer,kitInventory);
+        ArrangeSession arrangeSession = null;
+        if(inventoryName.equals("preview_inventory")){
+            setKitPreviewItems(inv,inventoryPlayer);
+        }else if(inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME)){
+            arrangeSession = inventoryArrangeManager.setKitArrangeItems(inv,inventoryPlayer);
         }
 
 
+        //Opening the inventory closes the previous one, so the session is set after it.
         inventoryPlayer.getPlayer().openInventory(inv);
+        inventoryPlayer.setArrangeSession(arrangeSession);
         players.add(inventoryPlayer);
     }
 
@@ -154,39 +173,18 @@ public class InventoryManager {
         return item;
     }
 
-    public void setKitPreviewItems(Inventory inv,InventoryPlayer inventoryPlayer,KitInventory kitInventory){
-        KitItemManager kitItemManager = plugin.getKitItemManager();
-        KitsManager kitsManager = plugin.getKitsManager();
-
-        Kit kit = kitsManager.getKitByName(inventoryPlayer.getKitName());
+    public void setKitPreviewItems(Inventory inv,InventoryPlayer inventoryPlayer){
+        Kit kit = plugin.getKitsManager().getKitByName(inventoryPlayer.getKitName());
         if(kit == null){
             return;
         }
 
-        // Create a list with all items including actions display items
-        ArrayList<KitItem> allItems = new ArrayList<>();
-        allItems.addAll(kit.getItems());
-        for(KitAction kitAction : kit.getClaimActions()){
-            KitItem kitItem = kitAction.getDisplayItem();
-            if(kitItem != null){
-                allItems.add(kitItem);
-            }
-        }
-
-        int slot = 0;
-        for(KitItem kitItem : allItems){
-            ItemStack item = kitItemManager.createItemFromKitItem(kitItem,inventoryPlayer.getPlayer(),kit);
-            if(kitItem.getPreviewSlot() != -1){
-                inv.setItem(kitItem.getPreviewSlot(),item);
-            }else{
-                inv.setItem(slot,item);
-            }
-            slot++;
-
-            if(slot >= kitInventory.getSlots()){
-                break;
-            }
-        }
+        // All items, including actions display items, on the slots arranged by the player
+        Player player = inventoryPlayer.getPlayer();
+        List<KitItem> allItems = InventoryArrangeManager.getAllKitItems(kit);
+        inventoryArrangeManager.layoutKitItems(inv,player,kit,allItems,
+                inventoryArrangeManager.getArrangement(player,kit.getName()),
+                InventoryArrangeManager.getReservedSlots(inv),false);
     }
 
     public void clickInventory(InventoryPlayer inventoryPlayer, ItemStack item, ClickType clickType){
@@ -275,8 +273,17 @@ public class InventoryManager {
 
     public void clickOnOpenInventoryItem(InventoryPlayer inventoryPlayer,String openInventory){
         if(openInventory.equals("previous")){
-            inventoryPlayer.setInventoryName(inventoryPlayer.getPreviousInventoryName());
+            String previousInventory = inventoryPlayer.removePreviousInventoryName();
+            if(previousInventory == null || getInventory(previousInventory) == null){
+                inventoryPlayer.getPlayer().closeInventory();
+                return;
+            }
+            inventoryPlayer.setInventoryName(previousInventory);
         }else{
+            if(openInventory.equals(InventoryArrangeManager.INVENTORY_NAME)
+                    && !inventoryArrangeManager.canArrange(inventoryPlayer)){
+                return;
+            }
             inventoryPlayer.setPreviousInventoryName(inventoryPlayer.getInventoryName());
             inventoryPlayer.setInventoryName(openInventory);
         }

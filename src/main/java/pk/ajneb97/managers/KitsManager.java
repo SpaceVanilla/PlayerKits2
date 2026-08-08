@@ -223,7 +223,8 @@ public class KitsManager {
 
 
         KitItemManager kitItemManager = plugin.getKitItemManager();
-        ArrayList<KitItem> items = kit.getItems();
+        //Items are given on the order the player arranged them, if it has an arrangement
+        List<KitItem> items = plugin.getInventoryManager().getInventoryArrangeManager().getArrangedItems(player,kit);
 
         //Check amount of free slots, including auto-armor
         int usedSlots = PlayerUtils.getUsedSlots(player); //storage contents, 36 slots

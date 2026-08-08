@@ -82,6 +82,14 @@ public class MessagesConfigManager {
                 getConfig().set("pluginCriticalErrors", "&cThe plugin has detected some errors. Check them using &7/kit verify");
                 saveConfig();
             }
+            if(!text.contains("kitArrangementSaved:")){
+                getConfig().set("commandArrangeError", "&cYou need to use: &7/kit arrange <kit>");
+                getConfig().set("kitArrangementDisabled", "&cKit arrangement is disabled.");
+                getConfig().set("cantArrangeError", "&cYou can't arrange this kit.");
+                getConfig().set("kitArrangementSaved", "&aArrangement of the kit &7%kit% &asaved!");
+                getConfig().set("kitArrangementReverted", "&aArrangement of the kit &7%kit% &areset to its default.");
+                saveConfig();
+            }
 
         }catch(IOException e){
             e.printStackTrace();

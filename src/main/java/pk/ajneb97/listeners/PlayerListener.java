@@ -6,6 +6,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import pk.ajneb97.PlayerKits2;
@@ -42,7 +43,12 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void closeInventory(InventoryCloseEvent event){
         Player player = (Player) event.getPlayer();
-        plugin.getInventoryManager().removeInventoryPlayer(player);
+        InventoryManager invManager = plugin.getInventoryManager();
+        InventoryPlayer inventoryPlayer = invManager.getInventoryPlayer(player);
+        if(inventoryPlayer != null && inventoryPlayer.getArrangeSession() != null){
+            invManager.getInventoryArrangeManager().closeInventory(inventoryPlayer);
+        }
+        invManager.removeInventoryPlayer(player);
     }
 
     @EventHandler
@@ -51,6 +57,11 @@ public class PlayerListener implements Listener {
         InventoryManager invManager = plugin.getInventoryManager();
         InventoryPlayer inventoryPlayer = invManager.getInventoryPlayer(player);
         if(inventoryPlayer != null) {
+            if(inventoryPlayer.getArrangeSession() != null){
+                invManager.getInventoryArrangeManager().clickInventory(inventoryPlayer,event);
+                return;
+            }
+
             event.setCancelled(true);
             if(event.getCurrentItem() == null || event.getSlotType() == null){
                 return;
@@ -59,6 +70,30 @@ public class PlayerListener implements Listener {
             if(event.getClickedInventory().equals(InventoryUtils.getTopInventory(player))) {
                 ClickType clickType = event.getClick();
                 invManager.clickInventory(inventoryPlayer,event.getCurrentItem(),clickType);
+            }
+        }
+    }
+
+    @EventHandler
+    public void dragInventory(InventoryDragEvent event){
+        Player player = (Player) event.getWhoClicked();
+        InventoryPlayer inventoryPlayer = plugin.getInventoryManager().getInventoryPlayer(player);
+        if(inventoryPlayer == null) {
+            return;
+        }
+
+        if(inventoryPlayer.getArrangeSession() != null){
+            //Dragging could take the item of the cursor out of the arrange inventory.
+            event.setCancelled(true);
+            return;
+        }
+
+        //Items can never be dragged into a PlayerKits inventory.
+        int slots = event.getInventory().getSize();
+        for(int slot : event.getRawSlots()){
+            if(slot < slots){
+                event.setCancelled(true);
+                return;
             }
         }
     }
