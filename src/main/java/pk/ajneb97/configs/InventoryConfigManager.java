@@ -1,14 +1,17 @@
 package pk.ajneb97.configs;
 
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.model.CommonConfig;
+import pk.ajneb97.managers.InventoryArrangeManager;
 import pk.ajneb97.managers.KitItemManager;
 import pk.ajneb97.model.inventory.ItemKitInventory;
 import pk.ajneb97.model.inventory.KitInventory;
 import pk.ajneb97.model.item.KitItem;
 import pk.ajneb97.utils.OtherUtils;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class InventoryConfigManager {
@@ -25,6 +28,7 @@ public class InventoryConfigManager {
             checkAndFix();
         }
         checkClickCommands();
+        checkArrangeInventory();
     }
 
     public void checkAndFix(){
@@ -66,6 +70,117 @@ public class InventoryConfigManager {
         if(needsSave){
             configFile.saveConfig();
         }
+    }
+
+    /**
+     * Creates the arrange inventory on configs made by older versions of the plugin.
+     */
+    public void checkArrangeInventory(){
+        FileConfiguration config = configFile.getConfig();
+        String path = "inventories."+InventoryArrangeManager.INVENTORY_NAME;
+        if(config.contains(path)){
+            return;
+        }
+
+        boolean legacy = OtherUtils.isLegacy();
+        config.set(path+".slots",54);
+        config.set(path+".title","&8&lArrange kit: &7%kit%");
+
+        config.set(path+".45.item.id",legacy ? "STAINED_GLASS_PANE:14" : "RED_STAINED_GLASS_PANE");
+        config.set(path+".45.item.name","&e&lREVERT &8(&7/kits&8)");
+        config.set(path+".45.item.lore",Arrays.asList(
+                "&8[&5PLAYER KITS&8]",
+                "",
+                "&aDescription:",
+                "&5| &aClick to reset the",
+                "&5| &akit to its default &esetting!",
+                "",
+                "&8▸ &e&lCLICK &eto Revert"));
+        config.set(path+".45.type","arrange_revert");
+
+        config.set(path+".52.item.id",legacy ? "CHEST" : "BARREL");
+        config.set(path+".52.item.name","&c&lBACK &8(&7/kits&8)");
+        config.set(path+".52.item.lore",Arrays.asList(
+                "&8[&5PLAYER KITS&8]",
+                "",
+                "&cDescription:",
+                "&5| &cExit this menu to",
+                "&5| &chave no changes &4saved!",
+                "",
+                "&8▸ &c&lCLICK &cto Return"));
+        config.set(path+".52.open_inventory","previous");
+
+        config.set(path+".53.item.id",legacy ? "STAINED_GLASS_PANE:5" : "LIME_STAINED_GLASS_PANE");
+        config.set(path+".53.item.name","&a&lSAVE &8(&7/kits&8)");
+        config.set(path+".53.item.lore",Arrays.asList(
+                "&8[&5PLAYER KITS&8]",
+                "",
+                "&aDescription:",
+                "&5| &aClick to save your",
+                "&5| &acurrent kit &earrangement!",
+                "",
+                "&8▸ &e&lCLICK &eto Save"));
+        config.set(path+".53.type","arrange_save");
+
+        addArrangeItemToPreviewInventory(config,legacy);
+
+        configFile.saveConfig();
+    }
+
+    /**
+     * Adds the item used to open the arrange inventory, on the last slot of the preview one.
+     */
+    private void addArrangeItemToPreviewInventory(FileConfiguration config,boolean legacy){
+        String previewPath = "inventories.preview_inventory";
+        if(!config.contains(previewPath)){
+            return;
+        }
+
+        int slot = config.getInt(previewPath+".slots")-1;
+        if(slot < 0 || isSlotUsed(config,previewPath,slot)){
+            return;
+        }
+
+        config.set(previewPath+"."+slot+".item.id",legacy ? "WORKBENCH" : "CRAFTING_TABLE");
+        config.set(previewPath+"."+slot+".item.name","&e&lARRANGE &8(&7/kits&8)");
+        config.set(previewPath+"."+slot+".item.lore",Arrays.asList(
+                "&8[&5PLAYER KITS&8]",
+                "",
+                "&aDescription:",
+                "&5| &aChoose the position of",
+                "&5| &aevery item of the &ekit!",
+                "",
+                "&8▸ &e&lCLICK &eto Arrange"));
+        config.set(previewPath+"."+slot+".open_inventory",InventoryArrangeManager.INVENTORY_NAME);
+    }
+
+    private boolean isSlotUsed(FileConfiguration config,String inventoryPath,int slot){
+        ConfigurationSection section = config.getConfigurationSection(inventoryPath);
+        if(section == null){
+            return true;
+        }
+
+        for(String key : section.getKeys(false)){
+            if(key.equals("slots") || key.equals("title")){
+                continue;
+            }
+
+            for(String slotString : key.split(";")){
+                try{
+                    if(slotString.contains("-")){
+                        String[] range = slotString.split("-");
+                        if(slot >= Integer.parseInt(range[0]) && slot <= Integer.parseInt(range[1])){
+                            return true;
+                        }
+                    }else if(Integer.parseInt(slotString) == slot){
+                        return true;
+                    }
+                }catch(NumberFormatException e){
+                    //Invalid slot, it is checked by the verify manager.
+                }
+            }
+        }
+        return false;
     }
 
     public void configure(){

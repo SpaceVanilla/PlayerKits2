@@ -6,6 +6,7 @@ public class PlayerDataKit {
     private long cooldown; //Cooldown calculated
     private boolean oneTime;
     private boolean bought;
+    private KitArrangement arrangement; //Custom item positions, null if the kit uses its default ones
 
     public PlayerDataKit(String name) {
         this.name = name;
@@ -44,5 +45,13 @@ public class PlayerDataKit {
 
     public void setBought(boolean bought) {
         this.bought = bought;
+    }
+
+    public KitArrangement getArrangement() {
+        return arrangement;
+    }
+
+    public void setArrangement(KitArrangement arrangement) {
+        this.arrangement = arrangement;
     }
 }

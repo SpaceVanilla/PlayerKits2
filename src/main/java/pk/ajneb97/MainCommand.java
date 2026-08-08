@@ -8,6 +8,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import pk.ajneb97.configs.MainConfigManager;
+import pk.ajneb97.managers.InventoryArrangeManager;
 import pk.ajneb97.managers.MessagesManager;
 import pk.ajneb97.managers.PlayerDataManager;
 import pk.ajneb97.model.Kit;
@@ -63,6 +64,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 claim(player,args,messagesConfig,msgManager);
             }else if(args[0].equalsIgnoreCase("preview")){
                 preview(player,args,messagesConfig,msgManager);
+            }else if(args[0].equalsIgnoreCase("arrange")){
+                arrange(player,args,messagesConfig,msgManager);
             }else if(args[0].equalsIgnoreCase("create")){
                 create(player,args,messagesConfig,msgManager);
             }else if(args[0].equalsIgnoreCase("give")) {
@@ -119,6 +122,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit delete <kit> &8Deletes a kit."));
         sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit reset <kit> <player>/* &8Resets kit data for a player."));
         sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit preview <kit> (optional)<player> &8Previews a kit."));
+        sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit arrange <kit> &8Arranges the items of a kit."));
         sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit open <inventory> <player> &8Opens a specific inventory for a player."));
         sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit reload &8Reloads the config."));
         sender.sendMessage(MessagesManager.getLegacyColoredMessage("&6/kit verify &8Checks the plugin for errors."));
@@ -319,6 +323,23 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         plugin.getInventoryManager().openInventory(inventoryPlayer);
     }
 
+    public void arrange(Player player,String[] args,FileConfiguration messagesConfig,MessagesManager msgManager){
+        // /kit arrange <kit>
+        if(args.length < 2){
+            msgManager.sendMessage(player,messagesConfig.getString("commandArrangeError"),true);
+            return;
+        }
+
+        InventoryPlayer inventoryPlayer = new InventoryPlayer(player,InventoryArrangeManager.INVENTORY_NAME);
+        inventoryPlayer.setKitName(args[1]);
+        inventoryPlayer.setPreviousInventoryName("main_inventory");
+        if(!plugin.getInventoryManager().getInventoryArrangeManager().canArrange(inventoryPlayer)){
+            return;
+        }
+
+        plugin.getInventoryManager().openInventory(inventoryPlayer);
+    }
+
     public void claimKitShortCommand(Player player,FileConfiguration messagesConfig,MessagesManager msgManager,String kitName){
         // /kit <kit>
         PlayerKitsMessageResult result = plugin.getKitsManager().giveKit(player,kitName,new GiveKitInstructions());
@@ -408,6 +429,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         MainConfigManager mainConfigManager = plugin.getConfigsManager().getMainConfigManager();
         boolean claimKitShortCommand = mainConfigManager.isClaimKitShortCommand();
         boolean kitPreviewEnabled = mainConfigManager.isKitPreview();
+        boolean kitArrangementEnabled = mainConfigManager.isKitArrangement();
 
         List<String> completions = new ArrayList<String>();
         List<String> commands = new ArrayList<String>();
@@ -423,6 +445,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             }
             if(kitPreviewEnabled){
                 commands.add("preview");
+            }
+            if(kitArrangementEnabled){
+                commands.add("arrange");
             }
             if(PlayerUtils.isPlayerKitsAdmin(sender)){
                 commands.add("give");commands.add("delete");commands.add("create");
@@ -442,6 +467,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 }
                 if(kitPreviewEnabled){
                     commands.add("preview");
+                }
+                if(kitArrangementEnabled){
+                    commands.add("arrange");
                 }
                 if(PlayerUtils.isPlayerKitsAdmin(sender)){
                     commands.add("give");commands.add("delete");
@@ -510,7 +538,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         ArrayList<KitInventory> inventories = plugin.getInventoryManager().getInventories();
         for(KitInventory inv : inventories) {
             if((argInv.isEmpty() || inv.getName().toLowerCase().startsWith(argInv.toLowerCase()))
-                && !inv.getName().equals("preview_inventory") && !inv.getName().equals("buy_requirements_inventory")) {
+                && !inv.getName().equals("preview_inventory") && !inv.getName().equals("buy_requirements_inventory")
+                && !inv.getName().equals(InventoryArrangeManager.INVENTORY_NAME)) {
                 completions.add(inv.getName());
             }
         }

@@ -42,5 +42,10 @@ kitPreviewDisabled: "&cKit preview is disabled."
 inventoryNotExists: "&cThat inventory doesn't exists."
 onlyPlayerCommand: "&cOnly a player can use this command."
 commandPreviewOtherCorrect: "&aPreviewing kit &7%kit% &ato &e%player%&a."
+commandArrangeError: "&cYou need to use: &7/kit arrange <kit>"
+kitArrangementDisabled: "&cKit arrangement is disabled."
+cantArrangeError: "&cYou can't arrange this kit."
+kitArrangementSaved: "&aArrangement of the kit &7%kit% &asaved!"
+kitArrangementReverted: "&aArrangement of the kit &7%kit% &areset to its default."
 
 

@@ -37,6 +37,61 @@ inventories:
         id: "ARROW"
         name: "&7Go Back"
       open_inventory: previous
+    53:
+      item:
+        id: "CRAFTING_TABLE"
+        name: "&e&lARRANGE &8(&7/kits&8)"
+        lore:
+          - "&8[&5PLAYER KITS&8]"
+          - ""
+          - "&aDescription:"
+          - "&5| &aChoose the position of"
+          - "&5| &aevery item of the &ekit!"
+          - ""
+          - "&8▸ &e&lCLICK &eto Arrange"
+      open_inventory: arrange_inventory
+  arrange_inventory:
+    slots: 54
+    title: "&8&lArrange kit: &7%kit%"
+    45:
+      item:
+        id: "RED_STAINED_GLASS_PANE"
+        name: "&e&lREVERT &8(&7/kits&8)"
+        lore:
+          - "&8[&5PLAYER KITS&8]"
+          - ""
+          - "&aDescription:"
+          - "&5| &aClick to reset the"
+          - "&5| &akit to its default &esetting!"
+          - ""
+          - "&8▸ &e&lCLICK &eto Revert"
+      type: arrange_revert
+    52:
+      item:
+        id: "BARREL"
+        name: "&c&lBACK &8(&7/kits&8)"
+        lore:
+          - "&8[&5PLAYER KITS&8]"
+          - ""
+          - "&cDescription:"
+          - "&5| &cExit this menu to"
+          - "&5| &chave no changes &4saved!"
+          - ""
+          - "&8▸ &c&lCLICK &cto Return"
+      open_inventory: previous
+    53:
+      item:
+        id: "LIME_STAINED_GLASS_PANE"
+        name: "&a&lSAVE &8(&7/kits&8)"
+        lore:
+          - "&8[&5PLAYER KITS&8]"
+          - ""
+          - "&aDescription:"
+          - "&5| &aClick to save your"
+          - "&5| &acurrent kit &earrangement!"
+          - ""
+          - "&8▸ &e&lCLICK &eto Save"
+      type: arrange_save
   buy_requirements_inventory:
     slots: 27
     title: "&4&lBuy Kit Requirements"

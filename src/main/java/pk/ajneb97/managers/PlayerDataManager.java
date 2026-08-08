@@ -6,6 +6,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.PlayersConfigManager;
 import pk.ajneb97.database.MySQLConnection;
+import pk.ajneb97.model.KitArrangement;
 import pk.ajneb97.model.PlayerData;
 import pk.ajneb97.model.internal.GenericCallback;
 import pk.ajneb97.model.internal.PlayerKitsMessageResult;
@@ -133,6 +134,29 @@ public class PlayerDataManager {
             return false;
         }else{
             return playerData.getKitHasBought(kitName);
+        }
+    }
+
+    public void setKitArrangement(Player player,String kitName,KitArrangement arrangement){
+        PlayerData playerData = getPlayer(player,true);
+        if(arrangement == null && playerData.getKit(kitName) == null){
+            //There is nothing to remove.
+            return;
+        }
+
+        boolean creating = playerData.setKitArrangement(kitName,arrangement);
+        playerData.setModified(true);
+        if(plugin.getMySQLConnection() != null){
+            plugin.getMySQLConnection().updateKit(playerData,playerData.getKit(kitName),creating);
+        }
+    }
+
+    public KitArrangement getKitArrangement(Player player,String kitName){
+        PlayerData playerData = getPlayerByUUID(player.getUniqueId());
+        if(playerData == null){
+            return null;
+        }else{
+            return playerData.getKitArrangement(kitName);
         }
     }
 
