@@ -27,7 +27,16 @@ import java.util.List;
 
 public class InventoryManager {
 
+    public static final String MAIN_INVENTORY_NAME = "main_inventory";
     public static final String PREVIEW_INVENTORY_NAME = "preview_inventory";
+    public static final String BUY_REQUIREMENTS_INVENTORY_NAME = "buy_requirements_inventory";
+
+    /**
+     * Inventories the plugin can't work without, so they are restored with their default
+     * values when they are not found on the inventory.yml file.
+     */
+    public static final List<String> REQUIRED_INVENTORY_NAMES = Arrays.asList(
+            MAIN_INVENTORY_NAME,PREVIEW_INVENTORY_NAME,BUY_REQUIREMENTS_INVENTORY_NAME);
 
     private PlayerKits2 plugin;
     private ArrayList<KitInventory> inventories;
@@ -90,10 +99,19 @@ public class InventoryManager {
     public void openInventory(InventoryPlayer inventoryPlayer){
         String inventoryName = inventoryPlayer.getInventoryName();
         KitInventory kitInventory = getInventory(inventoryName);
+        if(kitInventory == null){
+            //The inventory is not on the config, so it can't be opened. This is already
+            //reported by the verify manager, the player is only notified here.
+            Player player = inventoryPlayer.getPlayer();
+            plugin.getMessagesManager().sendMessage(player,plugin.getConfigsManager().getMessagesConfigManager()
+                    .getConfig().getString("pluginCriticalErrors"),true);
+            player.closeInventory();
+            return;
+        }
         MainConfigManager mainConfigManager = plugin.getConfigsManager().getMainConfigManager();
 
         String title = kitInventory.getTitle();
-        if(inventoryPlayer.getKitName() != null && (inventoryName.equals("buy_requirements_inventory")
+        if(inventoryPlayer.getKitName() != null && (inventoryName.equals(BUY_REQUIREMENTS_INVENTORY_NAME)
                 || inventoryName.equals(PREVIEW_INVENTORY_NAME) || inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME))){
             title = title.replace("%kit%",inventoryPlayer.getKitName());
         }
@@ -134,7 +152,7 @@ public class InventoryManager {
 
                 ItemStack item = kitItemManager.createItemFromKitItem(itemInventory.getItem(),inventoryPlayer.getPlayer(),null);
 
-                if(inventoryName.equals("buy_requirements_inventory")){
+                if(inventoryName.equals(BUY_REQUIREMENTS_INVENTORY_NAME)){
                     inventoryRequirementsManager.configureRequirementsItem(item,inventoryPlayer.getKitName(),inventoryPlayer.getPlayer());
                     if(type != null){
                         item = ItemUtils.setTagStringItem(plugin,item, "playerkits_buy", type);
@@ -224,7 +242,7 @@ public class InventoryManager {
         }
 
         //Requirements inventory
-        if(inventoryPlayer.getInventoryName().equals("buy_requirements_inventory")){
+        if(inventoryPlayer.getInventoryName().equals(BUY_REQUIREMENTS_INVENTORY_NAME)){
             String buyTag = ItemUtils.getTagStringItem(plugin,item,"playerkits_buy");
             if(buyTag == null){
                 return;
@@ -273,7 +291,7 @@ public class InventoryManager {
             if(result.isProceedToBuy()){
                 //Open requirements inventory
                 inventoryPlayer.setPreviousInventoryName(inventoryPlayer.getInventoryName());
-                inventoryPlayer.setInventoryName("buy_requirements_inventory");
+                inventoryPlayer.setInventoryName(BUY_REQUIREMENTS_INVENTORY_NAME);
                 inventoryPlayer.setKitName(kitName);
                 openInventory(inventoryPlayer);
                 return;

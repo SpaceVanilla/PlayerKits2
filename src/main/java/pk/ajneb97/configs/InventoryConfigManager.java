@@ -1,21 +1,47 @@
 package pk.ajneb97.configs;
 
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.model.CommonConfig;
 import pk.ajneb97.managers.InventoryArrangeManager;
 import pk.ajneb97.managers.InventoryManager;
 import pk.ajneb97.managers.KitItemManager;
+import pk.ajneb97.managers.MessagesManager;
 import pk.ajneb97.model.inventory.ItemKitInventory;
 import pk.ajneb97.model.inventory.KitInventory;
 import pk.ajneb97.model.item.KitItem;
 import pk.ajneb97.utils.OtherUtils;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class InventoryConfigManager {
+
+    private static final String FILE_NAME = "inventory.yml";
+
+    /**
+     * Items of the default inventories that don't exist on legacy versions, so they
+     * are replaced when a default inventory is restored on one of those servers.
+     */
+    private static final Map<String,String> LEGACY_ITEM_IDS = new HashMap<>();
+    static {
+        LEGACY_ITEM_IDS.put("BLACK_STAINED_GLASS_PANE","STAINED_GLASS_PANE:15");
+        LEGACY_ITEM_IDS.put("RED_STAINED_GLASS_PANE","STAINED_GLASS_PANE:14");
+        LEGACY_ITEM_IDS.put("GREEN_STAINED_GLASS_PANE","STAINED_GLASS_PANE:13");
+        LEGACY_ITEM_IDS.put("LIME_STAINED_GLASS_PANE","STAINED_GLASS_PANE:5");
+        LEGACY_ITEM_IDS.put("YELLOW_STAINED_GLASS_PANE","STAINED_GLASS_PANE:4");
+        LEGACY_ITEM_IDS.put("CRAFTING_TABLE","WORKBENCH");
+        LEGACY_ITEM_IDS.put("BARREL","CHEST");
+    }
 
     private PlayerKits2 plugin;
     private CommonConfig configFile;
@@ -23,12 +49,13 @@ public class InventoryConfigManager {
 
     public InventoryConfigManager(PlayerKits2 plugin){
         this.plugin = plugin;
-        this.configFile = new CommonConfig("inventory.yml",plugin,null, false);
+        this.configFile = new CommonConfig(FILE_NAME,plugin,null, false);
         this.configFile.registerConfig();
         if(this.configFile.isFirstTime() && OtherUtils.isLegacy()){
             checkAndFix();
         }
         checkClickCommands();
+        checkDefaultInventories();
         checkArrangeInventory();
     }
 
@@ -71,6 +98,115 @@ public class InventoryConfigManager {
         if(needsSave){
             configFile.saveConfig();
         }
+    }
+
+    /**
+     * Restores the inventories the plugin can't work without, using the default file
+     * included on the jar, when they are not found on the config. Without them the
+     * plugin reports a critical error and can't be used at all, so they are recreated
+     * instead of only being reported by the verify manager.
+     */
+    public void checkDefaultInventories(){
+        FileConfiguration config = configFile.getConfig();
+
+        List<String> missingInventories = new ArrayList<>();
+        for(String inventoryName : InventoryManager.REQUIRED_INVENTORY_NAMES){
+            if(!config.contains("inventories."+inventoryName)){
+                missingInventories.add(inventoryName);
+            }
+        }
+        if(missingInventories.isEmpty()){
+            return;
+        }
+
+        FileConfiguration defaultConfig = getDefaultConfig();
+        if(defaultConfig == null){
+            //The default file can't be read, so the verify manager reports the error.
+            return;
+        }
+
+        boolean legacy = OtherUtils.isLegacy();
+        boolean restored = false;
+        for(String inventoryName : missingInventories){
+            ConfigurationSection defaultInventory = defaultConfig.getConfigurationSection("inventories."+inventoryName);
+            if(defaultInventory == null){
+                continue;
+            }
+
+            restoreDefaultInventory(config,defaultInventory,inventoryName,legacy);
+            restored = true;
+            sendConsoleMessage("&eInventory &b"+inventoryName+" &ewas not found on "+FILE_NAME
+                    +", it has been restored with its default values.");
+        }
+
+        if(restored){
+            configFile.saveConfig();
+        }
+    }
+
+    /**
+     * Copies a whole inventory from the default file. Items pointing to a kit or to
+     * another inventory are only copied when they still make sense on this config,
+     * so restoring an inventory can't add new errors to the plugin.
+     */
+    private void restoreDefaultInventory(FileConfiguration config,ConfigurationSection defaultInventory,
+                                         String inventoryName,boolean legacy){
+        String path = "inventories."+inventoryName;
+        config.set(path+".slots",defaultInventory.getInt("slots"));
+        config.set(path+".title",defaultInventory.getString("title"));
+
+        for(String slotString : defaultInventory.getKeys(false)){
+            if(slotString.equals("slots") || slotString.equals("title")){
+                continue;
+            }
+
+            ConfigurationSection defaultSlot = defaultInventory.getConfigurationSection(slotString);
+            if(defaultSlot == null){
+                continue;
+            }
+
+            String type = defaultSlot.getString("type");
+            if(type != null && type.startsWith("kit: ")){
+                //The kits of the default file are not the ones of this server.
+                continue;
+            }
+
+            String openInventory = defaultSlot.getString("open_inventory");
+            if(openInventory != null && !openInventory.equals("previous")
+                    && !config.contains("inventories."+openInventory)){
+                //The item would open an inventory that doesn't exist on this config.
+                continue;
+            }
+
+            for(String key : defaultSlot.getKeys(true)){
+                Object value = defaultSlot.get(key);
+                if(value == null || value instanceof ConfigurationSection){
+                    continue;
+                }
+                if(legacy && key.equals("item.id")){
+                    value = LEGACY_ITEM_IDS.getOrDefault(value.toString(),value.toString());
+                }
+                config.set(path+"."+slotString+"."+key,value);
+            }
+        }
+    }
+
+    /**
+     * Reads the default inventory.yml included on the jar, returning null if it can't be read.
+     */
+    private FileConfiguration getDefaultConfig(){
+        try(InputStream resource = plugin.getResource(FILE_NAME)){
+            if(resource == null){
+                return null;
+            }
+            return YamlConfiguration.loadConfiguration(new InputStreamReader(resource, StandardCharsets.UTF_8));
+        }catch(Exception e){
+            return null;
+        }
+    }
+
+    private void sendConsoleMessage(String message){
+        Bukkit.getConsoleSender().sendMessage(MessagesManager.getLegacyColoredMessage(PlayerKits2.prefix+message));
     }
 
     /**
@@ -330,6 +466,10 @@ public class InventoryConfigManager {
         if(!configFile.reloadConfig()){
             return false;
         }
+        //The inventories needed by the plugin are also restored on reload, so a mistake
+        //while editing the file doesn't leave the plugin unusable until the next restart.
+        checkDefaultInventories();
+        checkArrangeInventory();
         configure();
         return true;
     }

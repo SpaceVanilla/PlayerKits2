@@ -101,7 +101,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
                 msgManager.sendMessage(player,messagesConfig.getString("pluginCriticalErrors"),true);
                 return true;
             }
-            plugin.getInventoryManager().openInventory(new InventoryPlayer(player,"main_inventory"));
+            plugin.getInventoryManager().openInventory(new InventoryPlayer(player,InventoryManager.MAIN_INVENTORY_NAME));
         }
 
 
@@ -318,9 +318,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             player = (Player)sender;
         }
 
-        InventoryPlayer inventoryPlayer = new InventoryPlayer(player,"preview_inventory");
+        InventoryPlayer inventoryPlayer = new InventoryPlayer(player,InventoryManager.PREVIEW_INVENTORY_NAME);
         inventoryPlayer.setKitName(args[1]);
-        inventoryPlayer.setPreviousInventoryName("main_inventory");
+        inventoryPlayer.setPreviousInventoryName(InventoryManager.MAIN_INVENTORY_NAME);
         plugin.getInventoryManager().openInventory(inventoryPlayer);
     }
 
@@ -338,7 +338,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
 
         InventoryPlayer inventoryPlayer = new InventoryPlayer(player,inventoryName);
         inventoryPlayer.setKitName(args[1]);
-        inventoryPlayer.setPreviousInventoryName("main_inventory");
+        inventoryPlayer.setPreviousInventoryName(InventoryManager.MAIN_INVENTORY_NAME);
         if(!arrangeManager.canArrange(inventoryPlayer)){
             return;
         }
@@ -354,9 +354,9 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }else{
             if(result.isProceedToBuy()){
                 //Open requirements inventory
-                InventoryPlayer inventoryPlayer = new InventoryPlayer(player,"buy_requirements_inventory");
+                InventoryPlayer inventoryPlayer = new InventoryPlayer(player,InventoryManager.BUY_REQUIREMENTS_INVENTORY_NAME);
                 inventoryPlayer.setKitName(kitName);
-                inventoryPlayer.setPreviousInventoryName("main_inventory");
+                inventoryPlayer.setPreviousInventoryName(InventoryManager.MAIN_INVENTORY_NAME);
                 plugin.getInventoryManager().openInventory(inventoryPlayer);
                 return;
             }
@@ -544,7 +544,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         ArrayList<KitInventory> inventories = plugin.getInventoryManager().getInventories();
         for(KitInventory inv : inventories) {
             if((argInv.isEmpty() || inv.getName().toLowerCase().startsWith(argInv.toLowerCase()))
-                && !inv.getName().equals("preview_inventory") && !inv.getName().equals("buy_requirements_inventory")
+                && !inv.getName().equals(InventoryManager.PREVIEW_INVENTORY_NAME)
+                && !inv.getName().equals(InventoryManager.BUY_REQUIREMENTS_INVENTORY_NAME)
                 && !inv.getName().equals(InventoryArrangeManager.INVENTORY_NAME)) {
                 completions.add(inv.getName());
             }
