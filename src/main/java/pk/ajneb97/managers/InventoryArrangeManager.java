@@ -29,7 +29,8 @@ import java.util.List;
  * the kit is shown on the preview and in which order it is received: the arrange
  * inventory and, if it is enabled on the config, the preview one. Items can only be
  * moved between the slots of those inventories, they can never be taken from them
- * or added to them.
+ * or added to them, and the slots of kit_arrangement_locked_slots always keep the
+ * item the kit places on them.
  */
 public class InventoryArrangeManager {
 
@@ -167,6 +168,21 @@ public class InventoryArrangeManager {
     }
 
     /**
+     * Slots of the config that players can't move, only the ones that fit on the inventory.
+     * A slot is only really locked once it gets the item the kit places on it, which is
+     * done by layoutKitItems.
+     */
+    public boolean[] getLockedSlots(Inventory inv){
+        boolean[] lockedSlots = new boolean[inv.getSize()];
+        for(int slot : plugin.getConfigsManager().getMainConfigManager().getKitArrangementLockedSlots()){
+            if(slot >= 0 && slot < lockedSlots.length){
+                lockedSlots[slot] = true;
+            }
+        }
+        return lockedSlots;
+    }
+
+    /**
      * Slots already used by the items of the menu, they can't be used by kit items.
      * It must be called before placing the items of the kit.
      */
@@ -184,9 +200,12 @@ public class InventoryArrangeManager {
      * Returns the kit item position used on every slot of the inventory.
      *
      * @param reservedLocked if true, items are never placed on the slots of the menu items.
+     * @param lockedSlots slots of the config that can't be moved, updated with the ones
+     *                    that really got an item of the kit.
      */
     public int[] layoutKitItems(Inventory inv, Player player, Kit kit, List<KitItem> allItems,
-                                KitArrangement arrangement, boolean[] reservedSlots, boolean reservedLocked){
+                                KitArrangement arrangement, boolean[] reservedSlots,
+                                boolean reservedLocked, boolean[] lockedSlots){
         KitItemManager kitItemManager = plugin.getKitItemManager();
         int slots = inv.getSize();
         int amount = allItems.size();
@@ -195,8 +214,31 @@ public class InventoryArrangeManager {
         Arrays.fill(slotItems,-1);
         boolean[] placedItems = new boolean[amount];
 
+        //Items locked on the slot of the config, the arrangement of the player can't move them.
+        for(int i=0;i<amount;i++){
+            KitItem kitItem = allItems.get(i);
+            int slot = kitItem.getPreviewSlot();
+            if(slot < 0 || slot >= slots || !lockedSlots[slot] || slotItems[slot] != -1 || reservedSlots[slot]){
+                continue;
+            }
+
+            inv.setItem(slot,kitItemManager.createItemFromKitItem(kitItem,player,kit));
+            slotItems[slot] = i;
+            placedItems[i] = true;
+        }
+
+        //Locked slots without an item of the kit are arranged like any other one.
+        for(int slot=0;slot<slots;slot++){
+            if(lockedSlots[slot] && slotItems[slot] == -1){
+                lockedSlots[slot] = false;
+            }
+        }
+
         //Items with a fixed slot: the one of the player arrangement or the one of the config.
         for(int i=0;i<amount;i++){
+            if(placedItems[i]){
+                continue;
+            }
             KitItem kitItem = allItems.get(i);
             int slot = arrangement != null ? arrangement.getSlot(i) : -1;
             boolean fromArrangement = slot != -1;
@@ -252,10 +294,11 @@ public class InventoryArrangeManager {
         Player player = inventoryPlayer.getPlayer();
         List<KitItem> allItems = getAllKitItems(kit);
         boolean[] reservedSlots = getReservedSlots(inv);
+        boolean[] lockedSlots = getLockedSlots(inv);
         KitArrangement arrangement = getArrangement(player,kit.getName());
 
-        int[] slotItems = layoutKitItems(inv,player,kit,allItems,arrangement,reservedSlots,true);
-        ArrangeSession session = new ArrangeSession(kit.getName(),slotItems,reservedSlots,allItems.size());
+        int[] slotItems = layoutKitItems(inv,player,kit,allItems,arrangement,reservedSlots,true,lockedSlots);
+        ArrangeSession session = new ArrangeSession(kit.getName(),slotItems,reservedSlots,lockedSlots,allItems.size());
         session.setSaveOnClose(saveOnClose);
         return session;
     }
@@ -283,6 +326,12 @@ public class InventoryArrangeManager {
                 updateInventoryLater(inventoryPlayer.getPlayer());
             }
             clickOnMenuItem(inventoryPlayer,inv.getItem(slot),clickType);
+            return;
+        }
+
+        if(session.isLocked(slot)){
+            //The item of the slot is locked on the config, it can't be taken or replaced.
+            updateInventoryLater(inventoryPlayer.getPlayer());
             return;
         }
 

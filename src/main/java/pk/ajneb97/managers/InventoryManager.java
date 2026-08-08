@@ -220,7 +220,8 @@ public class InventoryManager {
         List<KitItem> allItems = InventoryArrangeManager.getAllKitItems(kit);
         inventoryArrangeManager.layoutKitItems(inv,player,kit,allItems,
                 inventoryArrangeManager.getArrangement(player,kit.getName()),
-                InventoryArrangeManager.getReservedSlots(inv),false);
+                InventoryArrangeManager.getReservedSlots(inv),false,
+                inventoryArrangeManager.getLockedSlots(inv));
     }
 
     public void clickInventory(InventoryPlayer inventoryPlayer, ItemStack item, ClickType clickType){

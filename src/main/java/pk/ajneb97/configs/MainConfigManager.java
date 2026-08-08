@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainConfigManager {
 
@@ -27,6 +29,7 @@ public class MainConfigManager {
     private boolean kitArrangementAutoSave;
     private boolean kitArrangementRequiresKitPermission;
     private String kitArrangementPermission;
+    private Set<Integer> kitArrangementLockedSlots = new HashSet<>();
     private boolean newKitDefaultSaveModeOriginal;
     private String firstJoinKit;
     private String newKitDefaultInventory;
@@ -56,6 +59,7 @@ public class MainConfigManager {
         kitArrangementAutoSave = config.getBoolean("kit_arrangement_auto_save");
         kitArrangementRequiresKitPermission = config.getBoolean("kit_arrangement_requires_kit_permission");
         kitArrangementPermission = config.getString("kit_arrangement_permission");
+        kitArrangementLockedSlots = getSlotsFromString(config.getString("kit_arrangement_locked_slots"));
         firstJoinKit = config.getString("first_join_kit");
         newKitDefaultInventory = config.getString("new_kit_default_inventory");
         isMySQL = config.getBoolean("mysql_database.enabled");
@@ -63,6 +67,38 @@ public class MainConfigManager {
         claimKitShortCommand = config.getBoolean("claim_kit_short_command");
         useMiniMessage = config.getBoolean("use_minimessage");
         newKitDefaultSaveModeOriginal = config.getBoolean("new_kit_default_save_mode_original");
+    }
+
+    /**
+     * Slots of a list like '36;37;40-44', ignoring the ones that are not a number.
+     */
+    public Set<Integer> getSlotsFromString(String slots){
+        Set<Integer> result = new HashSet<>();
+        if(slots == null || slots.trim().isEmpty()){
+            return result;
+        }
+
+        for(String part : slots.split(";")){
+            part = part.trim();
+            if(part.isEmpty()){
+                continue;
+            }
+            try{
+                if(part.contains("-")){
+                    String[] range = part.split("-");
+                    int from = Integer.parseInt(range[0].trim());
+                    int to = Integer.parseInt(range[1].trim());
+                    for(int slot=from;slot<=to;slot++){
+                        result.add(slot);
+                    }
+                }else{
+                    result.add(Integer.parseInt(part));
+                }
+            }catch(Exception e){
+                plugin.getLogger().warning("Invalid slot '"+part+"' on kit_arrangement_locked_slots.");
+            }
+        }
+        return result;
     }
 
     public boolean reloadConfig(){
@@ -108,6 +144,10 @@ public class MainConfigManager {
                 getConfig().set("kit_arrangement_permission", "none");
                 configFile.saveConfig();
                 arrangementPreviewOptionsAdded = true;
+            }
+            if(!text.contains("kit_arrangement_locked_slots:")){
+                getConfig().set("kit_arrangement_locked_slots", "36-40");
+                configFile.saveConfig();
             }
         }catch(IOException e){
             e.printStackTrace();
@@ -159,6 +199,13 @@ public class MainConfigManager {
             return null;
         }
         return kitArrangementPermission;
+    }
+
+    /**
+     * Slots that players can't move when they arrange a kit.
+     */
+    public Set<Integer> getKitArrangementLockedSlots() {
+        return kitArrangementLockedSlots;
     }
 
     public String getFirstJoinKit() {

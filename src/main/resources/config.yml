@@ -17,6 +17,11 @@ kit_arrangement_auto_save: true
 kit_arrangement_requires_kit_permission: true
 # Extra permission needed to arrange kits, 'none' if any player can arrange them.
 kit_arrangement_permission: none
+# Slots that players can't move when they arrange a kit, so the items placed on them
+# by the preview_slot option of the kit always stay there (the armor of the kit, for
+# example). Slots without an item of the kit on them are arranged like any other one.
+# Use single slots (36;37), ranges (36-40) or leave it empty to disable.
+kit_arrangement_locked_slots: "36-40"
 first_join_kit: none
 new_kit_default_save_mode_original: true
 new_kit_default_inventory: "main_inventory"

@@ -13,6 +13,8 @@ public class ArrangeSession {
     private final int[] slotItems;
     //Slots used by the menu items (buttons), they can't hold kit items.
     private final boolean[] reservedSlots;
+    //Slots with an item of the kit that the player can't move.
+    private final boolean[] lockedSlots;
     private final int itemsAmount;
 
     //Kit item position currently on the cursor of the player (-1 if none).
@@ -22,10 +24,12 @@ public class ArrangeSession {
     //True if the player moved an item, so there is something to save.
     private boolean modified;
 
-    public ArrangeSession(String kitName, int[] slotItems, boolean[] reservedSlots, int itemsAmount) {
+    public ArrangeSession(String kitName, int[] slotItems, boolean[] reservedSlots,
+                          boolean[] lockedSlots, int itemsAmount) {
         this.kitName = kitName;
         this.slotItems = slotItems;
         this.reservedSlots = reservedSlots;
+        this.lockedSlots = lockedSlots;
         this.itemsAmount = itemsAmount;
         this.cursorItem = -1;
         this.saveOnClose = false;
@@ -72,6 +76,13 @@ public class ArrangeSession {
         return slot < 0 || slot >= reservedSlots.length || reservedSlots[slot];
     }
 
+    /**
+     * True if the item of the slot is locked by the config, so it can't be moved.
+     */
+    public boolean isLocked(int slot) {
+        return slot >= 0 && slot < lockedSlots.length && lockedSlots[slot];
+    }
+
     public int getSlotItem(int slot) {
         if(slot < 0 || slot >= slotItems.length){
             return -1;
@@ -88,7 +99,7 @@ public class ArrangeSession {
 
     public int getFirstFreeSlot() {
         for(int slot=0;slot<slotItems.length;slot++){
-            if(slotItems[slot] == -1 && !reservedSlots[slot]){
+            if(slotItems[slot] == -1 && !reservedSlots[slot] && !lockedSlots[slot]){
                 return slot;
             }
         }
