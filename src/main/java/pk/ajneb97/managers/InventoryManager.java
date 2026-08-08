@@ -27,6 +27,8 @@ import java.util.List;
 
 public class InventoryManager {
 
+    public static final String PREVIEW_INVENTORY_NAME = "preview_inventory";
+
     private PlayerKits2 plugin;
     private ArrayList<KitInventory> inventories;
     private ArrayList<InventoryPlayer> players;
@@ -92,7 +94,7 @@ public class InventoryManager {
 
         String title = kitInventory.getTitle();
         if(inventoryPlayer.getKitName() != null && (inventoryName.equals("buy_requirements_inventory")
-                || inventoryName.equals("preview_inventory") || inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME))){
+                || inventoryName.equals(PREVIEW_INVENTORY_NAME) || inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME))){
             title = title.replace("%kit%",inventoryPlayer.getKitName());
         }
         Inventory inv;
@@ -107,6 +109,14 @@ public class InventoryManager {
         KitsManager kitsManager = plugin.getKitsManager();
         PlayerDataManager playerDataManager = plugin.getPlayerDataManager();
 
+        //The items of the kit can be moved on the arrange inventory, and also directly
+        //on the preview one if that is enabled and the player can arrange the kit.
+        boolean arrangePreview = inventoryName.equals(PREVIEW_INVENTORY_NAME)
+                && inventoryArrangeManager.isEnabledOnPreview()
+                && inventoryArrangeManager.canArrangeKit(inventoryPlayer.getPlayer(),inventoryPlayer.getKitName());
+        boolean arrangeable = arrangePreview || inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME);
+        boolean saveOnClose = arrangePreview && inventoryArrangeManager.isAutoSave();
+
         //Add items for all inventories
         for(ItemKitInventory itemInventory : items){
             for(int slot : itemInventory.getSlots()){
@@ -117,6 +127,11 @@ public class InventoryManager {
                     continue;
                 }
 
+                if(inventoryArrangeManager.isArrangeItemHidden(type,arrangeable,saveOnClose)){
+                    //The items to save or revert the arrangement are only shown when they are needed.
+                    continue;
+                }
+
                 ItemStack item = kitItemManager.createItemFromKitItem(itemInventory.getItem(),inventoryPlayer.getPlayer(),null);
 
                 if(inventoryName.equals("buy_requirements_inventory")){
@@ -124,14 +139,16 @@ public class InventoryManager {
                     if(type != null){
                         item = ItemUtils.setTagStringItem(plugin,item, "playerkits_buy", type);
                     }
-                }else if(inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME) && type != null){
+                }else if(InventoryArrangeManager.isArrangeType(type)){
                     item = ItemUtils.setTagStringItem(plugin,item, "playerkits_arrange", type);
                 }
 
                 String openInventory = itemInventory.getOpenInventory();
                 if(openInventory != null) {
-                    if(openInventory.equals(InventoryArrangeManager.INVENTORY_NAME) && !inventoryArrangeManager.isEnabled()){
-                        //The item to open the arrange inventory is hidden if the feature is disabled.
+                    if(openInventory.equals(InventoryArrangeManager.INVENTORY_NAME)
+                            && (!inventoryArrangeManager.isEnabled() || inventoryArrangeManager.isEnabledOnPreview())){
+                        //The item to open the arrange inventory is hidden if the feature is
+                        //disabled or if the items can already be moved on the preview.
                         continue;
                     }
                     item = ItemUtils.setTagStringItem(plugin,item, "playerkits_open_inventory", openInventory);
@@ -144,10 +161,11 @@ public class InventoryManager {
 
         //Special items for some inventories
         ArrangeSession arrangeSession = null;
-        if(inventoryName.equals("preview_inventory")){
+        if(arrangeable){
+            arrangeSession = inventoryArrangeManager.setKitArrangeItems(inv,inventoryPlayer,saveOnClose);
+        }
+        if(arrangeSession == null && inventoryName.equals(PREVIEW_INVENTORY_NAME)){
             setKitPreviewItems(inv,inventoryPlayer);
-        }else if(inventoryName.equals(InventoryArrangeManager.INVENTORY_NAME)){
-            arrangeSession = inventoryArrangeManager.setKitArrangeItems(inv,inventoryPlayer);
         }
 
 
@@ -239,7 +257,7 @@ public class InventoryManager {
                 }
             }
             inventoryPlayer.setPreviousInventoryName(inventoryPlayer.getInventoryName());
-            inventoryPlayer.setInventoryName("preview_inventory");
+            inventoryPlayer.setInventoryName(PREVIEW_INVENTORY_NAME);
             inventoryPlayer.setKitName(kitName);
             openInventory(inventoryPlayer);
             return;

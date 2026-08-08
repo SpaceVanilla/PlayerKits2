@@ -37,6 +37,35 @@ inventories:
         id: "ARROW"
         name: "&7Go Back"
       open_inventory: previous
+    # Only shown when the items can be moved on this menu (kit_arrangement_in_preview).
+    49:
+      item:
+        id: "RED_STAINED_GLASS_PANE"
+        name: "&e&lREVERT &8(&7/kits&8)"
+        lore:
+          - "&8[&5PLAYER KITS&8]"
+          - ""
+          - "&aDescription:"
+          - "&5| &aClick to reset the"
+          - "&5| &akit to its default &esetting!"
+          - ""
+          - "&8▸ &e&lCLICK &eto Revert"
+      type: arrange_revert
+    # Only shown when the changes are not saved on close (kit_arrangement_auto_save).
+    52:
+      item:
+        id: "LIME_STAINED_GLASS_PANE"
+        name: "&a&lSAVE &8(&7/kits&8)"
+        lore:
+          - "&8[&5PLAYER KITS&8]"
+          - ""
+          - "&aDescription:"
+          - "&5| &aClick to save your"
+          - "&5| &acurrent kit &earrangement!"
+          - ""
+          - "&8▸ &e&lCLICK &eto Save"
+      type: arrange_save
+    # Only shown when the items can't be moved on this menu (kit_arrangement_in_preview).
     53:
       item:
         id: "CRAFTING_TABLE"

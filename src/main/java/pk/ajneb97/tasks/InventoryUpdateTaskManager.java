@@ -37,7 +37,7 @@ public class InventoryUpdateTaskManager {
         ArrayList<InventoryPlayer> players = inventoryManager.getPlayers();
         for(InventoryPlayer player : players){
             if(player.getArrangeSession() != null){
-                //The arrange inventory has no kit items to update and its items must not be moved.
+                //The items of an inventory that is being arranged must not be moved.
                 continue;
             }
 

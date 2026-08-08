@@ -18,23 +18,25 @@ import pk.ajneb97.model.inventory.InventoryPlayer;
 import pk.ajneb97.model.item.KitItem;
 import pk.ajneb97.utils.InventoryUtils;
 import pk.ajneb97.utils.ItemUtils;
+import pk.ajneb97.utils.PlayerUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Manages the arrange inventory, where a player can move the items of a kit to
- * decide how the kit is shown on the preview and in which order it is received.
- * Items can only be moved between the slots of this inventory, they can never
- * be taken from it or added to it.
+ * Manages the inventories where a player can move the items of a kit to decide how
+ * the kit is shown on the preview and in which order it is received: the arrange
+ * inventory and, if it is enabled on the config, the preview one. Items can only be
+ * moved between the slots of those inventories, they can never be taken from them
+ * or added to them.
  */
 public class InventoryArrangeManager {
 
     public static final String INVENTORY_NAME = "arrange_inventory";
 
-    private static final String SAVE_TYPE = "arrange_save";
-    private static final String REVERT_TYPE = "arrange_revert";
+    public static final String SAVE_TYPE = "arrange_save";
+    public static final String REVERT_TYPE = "arrange_revert";
 
     private PlayerKits2 plugin;
     private InventoryManager inventoryManager;
@@ -49,6 +51,73 @@ public class InventoryArrangeManager {
     }
 
     /**
+     * The items of a kit can be moved directly on the preview inventory, so the
+     * arrange one is not used at all.
+     */
+    public boolean isEnabledOnPreview(){
+        MainConfigManager mainConfigManager = plugin.getConfigsManager().getMainConfigManager();
+        return mainConfigManager.isKitArrangement() && mainConfigManager.isKitArrangementInPreview();
+    }
+
+    /**
+     * Changes made on the preview inventory are saved when it is closed, so the
+     * save item is not needed.
+     */
+    public boolean isAutoSave(){
+        return plugin.getConfigsManager().getMainConfigManager().isKitArrangementAutoSave();
+    }
+
+    public static boolean isArrangeType(String type){
+        return SAVE_TYPE.equals(type) || REVERT_TYPE.equals(type);
+    }
+
+    /**
+     * Items to save or revert the arrangement are hidden when the items of the inventory
+     * can't be moved, and the save one is not needed if changes are saved on close.
+     */
+    public boolean isArrangeItemHidden(String type, boolean arrangeable, boolean saveOnClose){
+        if(!isArrangeType(type)){
+            return false;
+        }
+        return !arrangeable || (saveOnClose && type.equals(SAVE_TYPE));
+    }
+
+    /**
+     * Message of the messages.yml file with the error that stops the player from
+     * arranging the kit, null if it can arrange it.
+     */
+    private String getArrangeErrorMessage(Player player, String kitName){
+        if(!isEnabled()){
+            return "kitArrangementDisabled";
+        }
+
+        Kit kit = plugin.getKitsManager().getKitByName(kitName);
+        if(kit == null){
+            return "kitDoesNotExists";
+        }
+
+        MainConfigManager mainConfigManager = plugin.getConfigsManager().getMainConfigManager();
+        String permission = mainConfigManager.getKitArrangementPermission();
+        if(permission != null && !PlayerUtils.isPlayerKitsAdmin(player) && !player.hasPermission(permission)){
+            return "cantArrangeError";
+        }
+
+        if(mainConfigManager.isKitArrangementRequiresKitPermission() && !kit.playerHasPermission(player)){
+            return "cantArrangeError";
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if the player can arrange the kit, without sending any message. Used by the
+     * preview inventory, which is opened even when its items can't be moved.
+     */
+    public boolean canArrangeKit(Player player, String kitName){
+        return getArrangeErrorMessage(player,kitName) == null;
+    }
+
+    /**
      * Checks if the player can arrange the kit of the inventory, sending the
      * corresponding error message if it can't.
      */
@@ -56,26 +125,17 @@ public class InventoryArrangeManager {
         Player player = inventoryPlayer.getPlayer();
         FileConfiguration messagesConfig = plugin.getConfigsManager().getMessagesConfigManager().getConfig();
         MessagesManager msgManager = plugin.getMessagesManager();
+        String kitName = inventoryPlayer.getKitName();
 
-        if(!isEnabled()){
-            msgManager.sendMessage(player,messagesConfig.getString("kitArrangementDisabled"),true);
+        String errorMessage = getArrangeErrorMessage(player,kitName);
+        if(errorMessage != null){
+            msgManager.sendMessage(player,messagesConfig.getString(errorMessage)
+                    .replace("%kit%",String.valueOf(kitName)),true);
             return false;
         }
 
-        if(inventoryManager.getInventory(INVENTORY_NAME) == null){
+        if(inventoryManager.getInventory(inventoryPlayer.getInventoryName()) == null){
             msgManager.sendMessage(player,messagesConfig.getString("inventoryNotExists"),true);
-            return false;
-        }
-
-        Kit kit = plugin.getKitsManager().getKitByName(inventoryPlayer.getKitName());
-        if(kit == null){
-            msgManager.sendMessage(player,messagesConfig.getString("kitDoesNotExists")
-                    .replace("%kit%",String.valueOf(inventoryPlayer.getKitName())),true);
-            return false;
-        }
-
-        if(!kit.playerHasPermission(player)){
-            msgManager.sendMessage(player,messagesConfig.getString("cantArrangeError"),true);
             return false;
         }
 
@@ -178,9 +238,12 @@ public class InventoryArrangeManager {
     }
 
     /**
-     * Places the kit items on the arrange inventory and creates the session of the player.
+     * Places the kit items on an inventory that can be arranged and creates the session
+     * of the player.
+     *
+     * @param saveOnClose if true, the changes are saved when the inventory is closed.
      */
-    public ArrangeSession setKitArrangeItems(Inventory inv, InventoryPlayer inventoryPlayer){
+    public ArrangeSession setKitArrangeItems(Inventory inv, InventoryPlayer inventoryPlayer, boolean saveOnClose){
         Kit kit = plugin.getKitsManager().getKitByName(inventoryPlayer.getKitName());
         if(kit == null){
             return null;
@@ -192,7 +255,9 @@ public class InventoryArrangeManager {
         KitArrangement arrangement = getArrangement(player,kit.getName());
 
         int[] slotItems = layoutKitItems(inv,player,kit,allItems,arrangement,reservedSlots,true);
-        return new ArrangeSession(slotItems,reservedSlots,allItems.size());
+        ArrangeSession session = new ArrangeSession(kit.getName(),slotItems,reservedSlots,allItems.size());
+        session.setSaveOnClose(saveOnClose);
+        return session;
     }
 
     public void clickInventory(InventoryPlayer inventoryPlayer, InventoryClickEvent event){
@@ -211,16 +276,16 @@ public class InventoryArrangeManager {
             return;
         }
 
+        ClickType clickType = event.getClick();
         if(session.isReserved(slot)){
             if(session.getCursorItem() != -1){
                 //The client leaves the item it is carrying on the button, it must be updated back.
                 updateInventoryLater(inventoryPlayer.getPlayer());
             }
-            clickOnMenuItem(inventoryPlayer,inv.getItem(slot));
+            clickOnMenuItem(inventoryPlayer,inv.getItem(slot),clickType);
             return;
         }
 
-        ClickType clickType = event.getClick();
         if(!clickType.equals(ClickType.LEFT) && !clickType.equals(ClickType.RIGHT)){
             //Shift clicks, number keys, drops and swaps would move items in or out of the menu.
             return;
@@ -252,6 +317,7 @@ public class InventoryArrangeManager {
             inv.setItem(slot,null);
             session.setSlotItem(slot,-1);
             session.setCursorItem(slotItem);
+            session.setModified(true);
             player.setItemOnCursor(item.clone());
         }else{
             ItemStack item = player.getItemOnCursor();
@@ -267,24 +333,25 @@ public class InventoryArrangeManager {
             inv.setItem(slot,item);
             session.setSlotItem(slot,cursorItem);
             session.setCursorItem(slotItem);
+            session.setModified(true);
             player.setItemOnCursor(previousItem != null ? previousItem.clone() : null);
         }
 
         updateInventoryLater(player);
     }
 
-    private void clickOnMenuItem(InventoryPlayer inventoryPlayer, ItemStack item){
+    private void clickOnMenuItem(InventoryPlayer inventoryPlayer, ItemStack item, ClickType clickType){
         if(item == null || item.getType().equals(Material.AIR)){
             return;
         }
 
-        String itemActions = ItemUtils.getTagStringItem(plugin,item,"playerkits_item_actions");
-        if(itemActions != null){
-            inventoryManager.clickOnActionItem(inventoryPlayer,itemActions);
-        }
-
         String type = ItemUtils.getTagStringItem(plugin,item,"playerkits_arrange");
         if(type != null){
+            String itemActions = ItemUtils.getTagStringItem(plugin,item,"playerkits_item_actions");
+            if(itemActions != null){
+                inventoryManager.clickOnActionItem(inventoryPlayer,itemActions);
+            }
+
             if(type.equals(SAVE_TYPE)){
                 save(inventoryPlayer);
             }else if(type.equals(REVERT_TYPE)){
@@ -293,14 +360,13 @@ public class InventoryArrangeManager {
             return;
         }
 
-        String openInventory = ItemUtils.getTagStringItem(plugin,item,"playerkits_open_inventory");
-        if(openInventory != null){
-            inventoryManager.clickOnOpenInventoryItem(inventoryPlayer,openInventory);
-        }
+        //Every other item works like on the inventories that can't be arranged.
+        inventoryManager.clickInventory(inventoryPlayer,item,clickType);
     }
 
     /**
-     * Saves the current position of every item of the kit for the player.
+     * Saves the current position of every item of the kit for the player, called by
+     * the save item of the menu.
      */
     public void save(InventoryPlayer inventoryPlayer){
         ArrangeSession session = inventoryPlayer.getArrangeSession();
@@ -310,7 +376,14 @@ public class InventoryArrangeManager {
         }
 
         returnCursorItem(player,session,InventoryUtils.getTopInventory(player));
+        saveArrangement(player,session);
+    }
 
+    /**
+     * Stores the slot of every item of the kit on the data of the player, telling
+     * it on the chat.
+     */
+    private void saveArrangement(Player player, ArrangeSession session){
         int[] slotItems = session.getSlotItems();
         int[] slots = new int[session.getItemsAmount()];
         Arrays.fill(slots,-1);
@@ -321,7 +394,7 @@ public class InventoryArrangeManager {
             }
         }
 
-        String kitName = inventoryPlayer.getKitName();
+        String kitName = session.getKitName();
         plugin.getPlayerDataManager().setKitArrangement(player,kitName,new KitArrangement(slots));
 
         FileConfiguration messagesConfig = plugin.getConfigsManager().getMessagesConfigManager().getConfig();
@@ -334,8 +407,14 @@ public class InventoryArrangeManager {
      */
     public void revert(InventoryPlayer inventoryPlayer){
         Player player = inventoryPlayer.getPlayer();
-        String kitName = inventoryPlayer.getKitName();
+        ArrangeSession session = inventoryPlayer.getArrangeSession();
+        String kitName = session != null ? session.getKitName() : inventoryPlayer.getKitName();
         plugin.getPlayerDataManager().setKitArrangement(player,kitName,null);
+
+        if(session != null){
+            //The changes of the session are discarded, so they can't be saved on close.
+            session.setSaveOnClose(false);
+        }
 
         //Opening the inventory again clears the cursor and places the items on their default slots.
         inventoryManager.openInventory(inventoryPlayer);
@@ -346,23 +425,32 @@ public class InventoryArrangeManager {
     }
 
     /**
-     * Called when the arrange inventory is closed. The item on the cursor is a preview
-     * item, so it is removed instead of being dropped by the server.
+     * Called when an inventory that can be arranged is closed. The item on the cursor is
+     * a preview item, so it is removed instead of being dropped by the server, and the
+     * changes are saved if the session does it on close.
      */
     public void closeInventory(InventoryPlayer inventoryPlayer){
         ArrangeSession session = inventoryPlayer.getArrangeSession();
         inventoryPlayer.setArrangeSession(null);
-        if(session == null || session.getCursorItem() == -1){
+        if(session == null){
             return;
         }
 
+        //The item is not placed on the inventory, it is being closed, but it keeps
+        //the slot it would go back to so its position is not lost when saving.
         Player player = inventoryPlayer.getPlayer();
-        session.setCursorItem(-1);
-        player.setItemOnCursor(null);
+        returnCursorItem(player,session,null);
+
+        if(session.isSaveOnClose() && session.isModified()){
+            //Kits that were not arranged keep using their default positions, so they
+            //follow the changes made to them on the config.
+            saveArrangement(player,session);
+        }
     }
 
     /**
-     * Places the item on the cursor back on the inventory, on the first free slot.
+     * Takes the item of the cursor and places it back on the first free slot of the
+     * inventory, or only on the session if there is no inventory to place it on.
      */
     private void returnCursorItem(Player player, ArrangeSession session, Inventory inv){
         int cursorItem = session.getCursorItem();
@@ -373,7 +461,7 @@ public class InventoryArrangeManager {
         ItemStack item = player.getItemOnCursor();
         player.setItemOnCursor(null);
         session.setCursorItem(-1);
-        if(inv == null || item == null || item.getType().equals(Material.AIR)){
+        if(item == null || item.getType().equals(Material.AIR)){
             return;
         }
 
@@ -381,9 +469,11 @@ public class InventoryArrangeManager {
         if(slot == -1){
             return;
         }
-        inv.setItem(slot,item);
         session.setSlotItem(slot,cursorItem);
-        updateInventoryLater(player);
+        if(inv != null){
+            inv.setItem(slot,item);
+            updateInventoryLater(player);
+        }
     }
 
     /**

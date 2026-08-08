@@ -3,8 +3,20 @@ claim_kit_short_command: false
 close_inventory_on_claim: false
 kit_preview: true
 kit_preview_requires_kit_permission: false
+# Players can choose the position of every item of a kit.
 kit_arrangement: true
+# Kits are claimed on the order the player arranged them.
 kit_arrangement_claim_order: true
+# Items can be moved directly on the preview inventory, without opening the arrange one.
+# The items of the preview menu (buttons) can never be moved.
+kit_arrangement_in_preview: true
+# Changes made on the preview inventory are saved when it is closed, so the
+# save item is not needed. Set it to false to only save when that item is clicked.
+kit_arrangement_auto_save: true
+# Kits that need a permission to be claimed can only be arranged by players that have it.
+kit_arrangement_requires_kit_permission: true
+# Extra permission needed to arrange kits, 'none' if any player can arrange them.
+kit_arrangement_permission: none
 first_join_kit: none
 new_kit_default_save_mode_original: true
 new_kit_default_inventory: "main_inventory"
