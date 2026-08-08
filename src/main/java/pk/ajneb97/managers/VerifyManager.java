@@ -55,17 +55,11 @@ public class VerifyManager {
         for(KitInventory inventory : inventories){
             verifyInventory(inventory);
         }
-        if(inventoryManager.getInventory("main_inventory") == null){
-            errors.add(new PKInventoryDefaultNotExistsError("inventory.yml",null,true,"main_inventory"));
-            criticalErrors = true;
-        }
-        if(inventoryManager.getInventory("preview_inventory") == null){
-            errors.add(new PKInventoryDefaultNotExistsError("inventory.yml",null,true,"preview_inventory"));
-            criticalErrors = true;
-        }
-        if(inventoryManager.getInventory("buy_requirements_inventory") == null){
-            errors.add(new PKInventoryDefaultNotExistsError("inventory.yml",null,true,"buy_requirements_inventory"));
-            criticalErrors = true;
+        for(String inventoryName : InventoryManager.REQUIRED_INVENTORY_NAMES){
+            if(inventoryManager.getInventory(inventoryName) == null){
+                errors.add(new PKInventoryDefaultNotExistsError("inventory.yml",null,true,inventoryName));
+                criticalErrors = true;
+            }
         }
     }
 
