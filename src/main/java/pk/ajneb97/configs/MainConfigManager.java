@@ -23,12 +23,19 @@ public class MainConfigManager {
     private boolean kitPreviewRequiresKitPermission;
     private boolean kitArrangement;
     private boolean kitArrangementClaimOrder;
+    private boolean kitArrangementInPreview;
+    private boolean kitArrangementAutoSave;
+    private boolean kitArrangementRequiresKitPermission;
+    private String kitArrangementPermission;
     private boolean newKitDefaultSaveModeOriginal;
     private String firstJoinKit;
     private String newKitDefaultInventory;
     private boolean isMySQL;
     private boolean updateNotify;
     private boolean useMiniMessage;
+
+    //True if the options of the arrangement on the preview were just added to the config.
+    private boolean arrangementPreviewOptionsAdded;
 
     public MainConfigManager(PlayerKits2 plugin){
         this.plugin = plugin;
@@ -45,6 +52,10 @@ public class MainConfigManager {
         kitPreviewRequiresKitPermission = config.getBoolean("kit_preview_requires_kit_permission");
         kitArrangement = config.getBoolean("kit_arrangement");
         kitArrangementClaimOrder = config.getBoolean("kit_arrangement_claim_order");
+        kitArrangementInPreview = config.getBoolean("kit_arrangement_in_preview");
+        kitArrangementAutoSave = config.getBoolean("kit_arrangement_auto_save");
+        kitArrangementRequiresKitPermission = config.getBoolean("kit_arrangement_requires_kit_permission");
+        kitArrangementPermission = config.getString("kit_arrangement_permission");
         firstJoinKit = config.getString("first_join_kit");
         newKitDefaultInventory = config.getString("new_kit_default_inventory");
         isMySQL = config.getBoolean("mysql_database.enabled");
@@ -90,6 +101,14 @@ public class MainConfigManager {
                 getConfig().set("kit_arrangement_claim_order", true);
                 configFile.saveConfig();
             }
+            if(!text.contains("kit_arrangement_in_preview:")){
+                getConfig().set("kit_arrangement_in_preview", true);
+                getConfig().set("kit_arrangement_auto_save", true);
+                getConfig().set("kit_arrangement_requires_kit_permission", true);
+                getConfig().set("kit_arrangement_permission", "none");
+                configFile.saveConfig();
+                arrangementPreviewOptionsAdded = true;
+            }
         }catch(IOException e){
             e.printStackTrace();
         }
@@ -119,6 +138,29 @@ public class MainConfigManager {
         return kitArrangementClaimOrder;
     }
 
+    public boolean isKitArrangementInPreview() {
+        return kitArrangementInPreview;
+    }
+
+    public boolean isKitArrangementAutoSave() {
+        return kitArrangementAutoSave;
+    }
+
+    public boolean isKitArrangementRequiresKitPermission() {
+        return kitArrangementRequiresKitPermission;
+    }
+
+    /**
+     * Extra permission needed to arrange kits, null if any player can arrange them.
+     */
+    public String getKitArrangementPermission() {
+        if(kitArrangementPermission == null || kitArrangementPermission.isEmpty()
+                || kitArrangementPermission.equalsIgnoreCase("none")){
+            return null;
+        }
+        return kitArrangementPermission;
+    }
+
     public String getFirstJoinKit() {
         return firstJoinKit;
     }
@@ -145,5 +187,9 @@ public class MainConfigManager {
 
     public boolean isUseMiniMessage() {
         return useMiniMessage;
+    }
+
+    public boolean isArrangementPreviewOptionsAdded() {
+        return arrangementPreviewOptionsAdded;
     }
 }

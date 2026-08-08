@@ -5,6 +5,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.model.CommonConfig;
 import pk.ajneb97.managers.InventoryArrangeManager;
+import pk.ajneb97.managers.InventoryManager;
 import pk.ajneb97.managers.KitItemManager;
 import pk.ajneb97.model.inventory.ItemKitInventory;
 import pk.ajneb97.model.inventory.KitInventory;
@@ -131,7 +132,7 @@ public class InventoryConfigManager {
      * Adds the item used to open the arrange inventory, on the last slot of the preview one.
      */
     private void addArrangeItemToPreviewInventory(FileConfiguration config,boolean legacy){
-        String previewPath = "inventories.preview_inventory";
+        String previewPath = "inventories."+InventoryManager.PREVIEW_INVENTORY_NAME;
         if(!config.contains(previewPath)){
             return;
         }
@@ -152,6 +153,70 @@ public class InventoryConfigManager {
                 "",
                 "&8▸ &e&lCLICK &eto Arrange"));
         config.set(previewPath+"."+slot+".open_inventory",InventoryArrangeManager.INVENTORY_NAME);
+    }
+
+    /**
+     * Adds the items to save and revert the arrangement to the preview inventory, needed
+     * by the configs made before the kit could be arranged directly on it. Both items are
+     * only shown when they are needed, so they can be left on the config of any server.
+     */
+    public void addPreviewArrangeItems(){
+        FileConfiguration config = configFile.getConfig();
+        String previewPath = "inventories."+InventoryManager.PREVIEW_INVENTORY_NAME;
+        if(!config.contains(previewPath)){
+            return;
+        }
+
+        boolean legacy = OtherUtils.isLegacy();
+        int slots = config.getInt(previewPath+".slots");
+
+        //Revert item, on the middle of the last row.
+        boolean revertAdded = addArrangeItem(config,previewPath,slots-5,
+                legacy ? "STAINED_GLASS_PANE:14" : "RED_STAINED_GLASS_PANE",
+                "&e&lREVERT &8(&7/kits&8)",Arrays.asList(
+                        "&8[&5PLAYER KITS&8]",
+                        "",
+                        "&aDescription:",
+                        "&5| &aClick to reset the",
+                        "&5| &akit to its default &esetting!",
+                        "",
+                        "&8▸ &e&lCLICK &eto Revert"),
+                InventoryArrangeManager.REVERT_TYPE);
+
+        //Save item, only shown when the changes are not saved on close.
+        boolean saveAdded = addArrangeItem(config,previewPath,slots-2,
+                legacy ? "STAINED_GLASS_PANE:5" : "LIME_STAINED_GLASS_PANE",
+                "&a&lSAVE &8(&7/kits&8)",Arrays.asList(
+                        "&8[&5PLAYER KITS&8]",
+                        "",
+                        "&aDescription:",
+                        "&5| &aClick to save your",
+                        "&5| &acurrent kit &earrangement!",
+                        "",
+                        "&8▸ &e&lCLICK &eto Save"),
+                InventoryArrangeManager.SAVE_TYPE);
+
+        if(revertAdded || saveAdded){
+            configFile.saveConfig();
+        }
+    }
+
+    /**
+     * Adds an item of the arrangement on a slot, doing nothing if that slot is already used.
+     * Returns true if the item was added.
+     */
+    private boolean addArrangeItem(FileConfiguration config,String inventoryPath,int slot,
+                                   String id,String name,List<String> lore,String type){
+        if(slot < 0 || isSlotUsed(config,inventoryPath,slot)){
+            return false;
+        }
+
+        String path = inventoryPath+"."+slot;
+        config.set(path+".item.id",id);
+        config.set(path+".item.name",name);
+        config.set(path+".item.lore",lore);
+        config.set(path+".type",type);
+        return true;
     }
 
     private boolean isSlotUsed(FileConfiguration config,String inventoryPath,int slot){

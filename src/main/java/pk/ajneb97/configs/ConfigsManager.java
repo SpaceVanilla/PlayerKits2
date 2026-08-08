@@ -19,6 +19,11 @@ public class ConfigsManager {
         this.mainConfigManager = new MainConfigManager(plugin);
         this.playersConfigManager = new PlayersConfigManager(plugin,"players");
         this.inventoryConfigManager = new InventoryConfigManager(plugin);
+        if(mainConfigManager.isArrangementPreviewOptionsAdded()){
+            //The config was made before the kits could be arranged on the preview inventory,
+            //so it doesn't have the items to save and revert the arrangement on it.
+            this.inventoryConfigManager.addPreviewArrangeItems();
+        }
     }
 
     public void configure(){

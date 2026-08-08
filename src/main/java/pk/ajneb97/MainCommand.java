@@ -9,6 +9,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import pk.ajneb97.configs.MainConfigManager;
 import pk.ajneb97.managers.InventoryArrangeManager;
+import pk.ajneb97.managers.InventoryManager;
 import pk.ajneb97.managers.MessagesManager;
 import pk.ajneb97.managers.PlayerDataManager;
 import pk.ajneb97.model.Kit;
@@ -330,10 +331,15 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        InventoryPlayer inventoryPlayer = new InventoryPlayer(player,InventoryArrangeManager.INVENTORY_NAME);
+        //The kit is arranged on the preview inventory if its items can be moved directly on it.
+        InventoryArrangeManager arrangeManager = plugin.getInventoryManager().getInventoryArrangeManager();
+        String inventoryName = arrangeManager.isEnabledOnPreview() ?
+                InventoryManager.PREVIEW_INVENTORY_NAME : InventoryArrangeManager.INVENTORY_NAME;
+
+        InventoryPlayer inventoryPlayer = new InventoryPlayer(player,inventoryName);
         inventoryPlayer.setKitName(args[1]);
         inventoryPlayer.setPreviousInventoryName("main_inventory");
-        if(!plugin.getInventoryManager().getInventoryArrangeManager().canArrange(inventoryPlayer)){
+        if(!arrangeManager.canArrange(inventoryPlayer)){
             return;
         }
 
