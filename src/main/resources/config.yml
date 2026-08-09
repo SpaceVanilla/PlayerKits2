@@ -10,8 +10,9 @@ kit_arrangement_claim_order: true
 # Items can be moved directly on the preview inventory, without opening the arrange one.
 # The items of the preview menu (buttons) can never be moved.
 kit_arrangement_in_preview: true
-# Changes made on the preview inventory are saved when it is closed, so the
-# save item is not needed. Set it to false to only save when that item is clicked.
+# Changes made on the preview inventory are also saved when it is closed, so an
+# arrangement is not lost if the save item is not clicked. The save item is always
+# shown, set this to false to only save the arrangement when it is clicked.
 kit_arrangement_auto_save: true
 # Kits that need a permission to be claimed can only be arranged by players that have it.
 kit_arrangement_requires_kit_permission: true

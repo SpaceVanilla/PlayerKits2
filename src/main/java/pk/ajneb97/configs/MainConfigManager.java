@@ -37,9 +37,6 @@ public class MainConfigManager {
     private boolean updateNotify;
     private boolean useMiniMessage;
 
-    //True if the options of the arrangement on the preview were just added to the config.
-    private boolean arrangementPreviewOptionsAdded;
-
     public MainConfigManager(PlayerKits2 plugin){
         this.plugin = plugin;
         this.configFile = new CommonConfig("config.yml",plugin,null, false);
@@ -143,7 +140,6 @@ public class MainConfigManager {
                 getConfig().set("kit_arrangement_requires_kit_permission", true);
                 getConfig().set("kit_arrangement_permission", "none");
                 configFile.saveConfig();
-                arrangementPreviewOptionsAdded = true;
             }
             if(!text.contains("kit_arrangement_locked_slots:")){
                 getConfig().set("kit_arrangement_locked_slots", "36-40");
@@ -234,9 +230,5 @@ public class MainConfigManager {
 
     public boolean isUseMiniMessage() {
         return useMiniMessage;
-    }
-
-    public boolean isArrangementPreviewOptionsAdded() {
-        return arrangementPreviewOptionsAdded;
     }
 }

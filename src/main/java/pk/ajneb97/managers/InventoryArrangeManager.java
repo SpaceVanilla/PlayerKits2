@@ -61,8 +61,8 @@ public class InventoryArrangeManager {
     }
 
     /**
-     * Changes made on the preview inventory are saved when it is closed, so the
-     * save item is not needed.
+     * Changes made on the preview inventory are also saved when it is closed, so the
+     * arrangement is not lost if the player forgets to click the save item.
      */
     public boolean isAutoSave(){
         return plugin.getConfigsManager().getMainConfigManager().isKitArrangementAutoSave();
@@ -73,14 +73,13 @@ public class InventoryArrangeManager {
     }
 
     /**
-     * Items to save or revert the arrangement are hidden when the items of the inventory
-     * can't be moved, and the save one is not needed if changes are saved on close.
+     * Items to save or revert the arrangement are only hidden when the items of the
+     * inventory can't be moved. A player that can arrange a kit always has the item to
+     * save it, even when the changes are also saved on close, so the menu never looks
+     * like the arrangement can't be stored.
      */
-    public boolean isArrangeItemHidden(String type, boolean arrangeable, boolean saveOnClose){
-        if(!isArrangeType(type)){
-            return false;
-        }
-        return !arrangeable || (saveOnClose && type.equals(SAVE_TYPE));
+    public boolean isArrangeItemHidden(String type, boolean arrangeable){
+        return isArrangeType(type) && !arrangeable;
     }
 
     /**
@@ -424,8 +423,12 @@ public class InventoryArrangeManager {
             return;
         }
 
+        //The item on the cursor is placed back before saving, so its slot is not lost.
         returnCursorItem(player,session,InventoryUtils.getTopInventory(player));
         saveArrangement(player,session);
+
+        //The arrangement is already stored, so closing the inventory doesn't save it again.
+        session.setModified(false);
     }
 
     /**
