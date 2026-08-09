@@ -57,6 +57,7 @@ public class InventoryConfigManager {
         checkClickCommands();
         checkDefaultInventories();
         checkArrangeInventory();
+        checkArrangeItems();
     }
 
     public void checkAndFix(){
@@ -292,22 +293,37 @@ public class InventoryConfigManager {
     }
 
     /**
-     * Adds the items to save and revert the arrangement to the preview inventory, needed
-     * by the configs made before the kit could be arranged directly on it. Both items are
-     * only shown when they are needed, so they can be left on the config of any server.
+     * Makes sure the inventories where a kit can be arranged have the items to save and
+     * revert the arrangement. They are missing on the configs made before the kit could
+     * be arranged directly on the preview inventory, and without the save item a player
+     * has no way of storing the arrangement from the menu. Both items are only shown
+     * when the items of the inventory can be moved, so they can be left on any config.
      */
-    public void addPreviewArrangeItems(){
+    public void checkArrangeItems(){
         FileConfiguration config = configFile.getConfig();
-        String previewPath = "inventories."+InventoryManager.PREVIEW_INVENTORY_NAME;
-        if(!config.contains(previewPath)){
-            return;
-        }
 
         boolean legacy = OtherUtils.isLegacy();
-        int slots = config.getInt(previewPath+".slots");
+        boolean added = addArrangeItems(config,"inventories."+InventoryManager.PREVIEW_INVENTORY_NAME,legacy);
+        added |= addArrangeItems(config,"inventories."+InventoryArrangeManager.INVENTORY_NAME,legacy);
+
+        if(added){
+            configFile.saveConfig();
+        }
+    }
+
+    /**
+     * Adds the items to save and revert the arrangement to an inventory, only the ones
+     * it doesn't have yet. Returns true if any of them was added.
+     */
+    private boolean addArrangeItems(FileConfiguration config,String inventoryPath,boolean legacy){
+        if(!config.contains(inventoryPath)){
+            return false;
+        }
+        int slots = config.getInt(inventoryPath+".slots");
+        String inventoryName = inventoryPath.substring(inventoryPath.lastIndexOf('.')+1);
 
         //Revert item, on the middle of the last row.
-        boolean revertAdded = addArrangeItem(config,previewPath,slots-5,
+        int revertSlot = addArrangeItem(config,inventoryPath,slots,slots-5,
                 legacy ? "STAINED_GLASS_PANE:14" : "RED_STAINED_GLASS_PANE",
                 "&e&lREVERT &8(&7/kits&8)",Arrays.asList(
                         "&8[&5PLAYER KITS&8]",
@@ -318,9 +334,10 @@ public class InventoryConfigManager {
                         "",
                         "&8▸ &e&lCLICK &eto Revert"),
                 InventoryArrangeManager.REVERT_TYPE);
+        sendArrangeItemMessage(inventoryName,InventoryArrangeManager.REVERT_TYPE,revertSlot);
 
-        //Save item, only shown when the changes are not saved on close.
-        boolean saveAdded = addArrangeItem(config,previewPath,slots-2,
+        //Save item, on the last row too.
+        int saveSlot = addArrangeItem(config,inventoryPath,slots,slots-2,
                 legacy ? "STAINED_GLASS_PANE:5" : "LIME_STAINED_GLASS_PANE",
                 "&a&lSAVE &8(&7/kits&8)",Arrays.asList(
                         "&8[&5PLAYER KITS&8]",
@@ -331,20 +348,26 @@ public class InventoryConfigManager {
                         "",
                         "&8▸ &e&lCLICK &eto Save"),
                 InventoryArrangeManager.SAVE_TYPE);
+        sendArrangeItemMessage(inventoryName,InventoryArrangeManager.SAVE_TYPE,saveSlot);
 
-        if(revertAdded || saveAdded){
-            configFile.saveConfig();
-        }
+        return revertSlot != -1 || saveSlot != -1;
     }
 
     /**
-     * Adds an item of the arrangement on a slot, doing nothing if that slot is already used.
-     * Returns true if the item was added.
+     * Adds an item of the arrangement to an inventory that doesn't have it yet, using the
+     * slot of the default config if it is free or the last free one of the inventory.
+     * Returns the slot the item was added on, -1 if it was not added.
      */
-    private boolean addArrangeItem(FileConfiguration config,String inventoryPath,int slot,
-                                   String id,String name,List<String> lore,String type){
-        if(slot < 0 || isSlotUsed(config,inventoryPath,slot)){
-            return false;
+    private int addArrangeItem(FileConfiguration config,String inventoryPath,int slots,int preferredSlot,
+                               String id,String name,List<String> lore,String type){
+        if(hasItemOfType(config,inventoryPath,type)){
+            return -1;
+        }
+
+        int slot = getFreeSlot(config,inventoryPath,slots,preferredSlot);
+        if(slot == -1){
+            //Every slot of the inventory is used, so the item can't be added to it.
+            return -1;
         }
 
         String path = inventoryPath+"."+slot;
@@ -352,7 +375,49 @@ public class InventoryConfigManager {
         config.set(path+".item.name",name);
         config.set(path+".item.lore",lore);
         config.set(path+".type",type);
-        return true;
+        return slot;
+    }
+
+    private void sendArrangeItemMessage(String inventoryName,String type,int slot){
+        if(slot == -1){
+            return;
+        }
+        sendConsoleMessage("&eThe item &b"+type+" &ewas not found on the inventory &b"+inventoryName
+                +" &eof "+FILE_NAME+", it has been added on the slot &b"+slot+"&e.");
+    }
+
+    /**
+     * True if the inventory already has an item of a type, so it is not added again.
+     */
+    private boolean hasItemOfType(FileConfiguration config,String inventoryPath,String type){
+        ConfigurationSection section = config.getConfigurationSection(inventoryPath);
+        if(section == null){
+            return false;
+        }
+
+        for(String key : section.getKeys(false)){
+            if(type.equals(config.getString(inventoryPath+"."+key+".type"))){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Slot where an item can be added: the preferred one if it is free, or the last free
+     * slot of the inventory. -1 if every slot is already used.
+     */
+    private int getFreeSlot(FileConfiguration config,String inventoryPath,int slots,int preferredSlot){
+        if(preferredSlot >= 0 && preferredSlot < slots && !isSlotUsed(config,inventoryPath,preferredSlot)){
+            return preferredSlot;
+        }
+
+        for(int slot=slots-1;slot>=0;slot--){
+            if(!isSlotUsed(config,inventoryPath,slot)){
+                return slot;
+            }
+        }
+        return -1;
     }
 
     private boolean isSlotUsed(FileConfiguration config,String inventoryPath,int slot){
@@ -470,6 +535,7 @@ public class InventoryConfigManager {
         //while editing the file doesn't leave the plugin unusable until the next restart.
         checkDefaultInventories();
         checkArrangeInventory();
+        checkArrangeItems();
         configure();
         return true;
     }

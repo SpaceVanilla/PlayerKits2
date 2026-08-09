@@ -145,7 +145,7 @@ public class InventoryManager {
                     continue;
                 }
 
-                if(inventoryArrangeManager.isArrangeItemHidden(type,arrangeable,saveOnClose)){
+                if(inventoryArrangeManager.isArrangeItemHidden(type,arrangeable)){
                     //The items to save or revert the arrangement are only shown when they are needed.
                     continue;
                 }
