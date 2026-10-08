@@ -18,6 +18,7 @@ import pk.ajneb97.model.internal.PlayerKitsMessageResult;
 import pk.ajneb97.model.inventory.InventoryPlayer;
 import pk.ajneb97.model.inventory.KitInventory;
 import pk.ajneb97.utils.PlayerUtils;
+import pk.ajneb97.utils.SchedulerUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -221,7 +222,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
 
         InventoryPlayer inventoryPlayer = new InventoryPlayer(player,inventoryName);
-        plugin.getInventoryManager().openInventory(inventoryPlayer);
+        SchedulerUtils.runEntity(plugin,player,() -> plugin.getInventoryManager().openInventory(inventoryPlayer));
     }
 
     public void give(CommandSender sender,String[] args,FileConfiguration messagesConfig,MessagesManager msgManager){
@@ -244,14 +245,17 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        PlayerKitsMessageResult result = plugin.getKitsManager().giveKit(player,kitName,new GiveKitInstructions(true,false,false,false));
-        if(result.isError()){
-            msgManager.sendMessage(sender,messagesConfig.getString("commandGiveError2")
-                    .replace("%error%",result.getMessage()),true);
-        }else{
-            msgManager.sendMessage(sender,messagesConfig.getString("commandGiveCorrect")
-                    .replace("%kit%",kitName).replace("%player%",args[2]),true);
-        }
+        //On Folia the kit can only be given by the region that owns the player.
+        SchedulerUtils.runEntity(plugin,player,() -> {
+            PlayerKitsMessageResult result = plugin.getKitsManager().giveKit(player,kitName,new GiveKitInstructions(true,false,false,false));
+            if(result.isError()){
+                msgManager.sendMessage(sender,messagesConfig.getString("commandGiveError2")
+                        .replace("%error%",result.getMessage()),true);
+            }else{
+                msgManager.sendMessage(sender,messagesConfig.getString("commandGiveCorrect")
+                        .replace("%kit%",kitName).replace("%player%",args[2]),true);
+            }
+        });
     }
 
     public void claim(Player player,String[] args,FileConfiguration messagesConfig,MessagesManager msgManager){
@@ -321,7 +325,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         InventoryPlayer inventoryPlayer = new InventoryPlayer(player,InventoryManager.PREVIEW_INVENTORY_NAME);
         inventoryPlayer.setKitName(args[1]);
         inventoryPlayer.setPreviousInventoryName(InventoryManager.MAIN_INVENTORY_NAME);
-        plugin.getInventoryManager().openInventory(inventoryPlayer);
+        SchedulerUtils.runEntity(plugin,player,() -> plugin.getInventoryManager().openInventory(inventoryPlayer));
     }
 
     public void arrange(Player player,String[] args,FileConfiguration messagesConfig,MessagesManager msgManager){

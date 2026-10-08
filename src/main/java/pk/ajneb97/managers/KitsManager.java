@@ -398,7 +398,7 @@ public class KitsManager {
                 ActionUtils.message(player,actionLine);
                 break;
             case "console_command":
-                ActionUtils.consoleCommand(actionLine);
+                ActionUtils.consoleCommand(actionLine,plugin);
                 break;
             case "player_command":
                 ActionUtils.playerCommand(player,actionLine);

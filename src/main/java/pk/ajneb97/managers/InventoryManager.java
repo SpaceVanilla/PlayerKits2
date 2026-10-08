@@ -24,6 +24,7 @@ import pk.ajneb97.utils.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class InventoryManager {
 
@@ -40,17 +41,18 @@ public class InventoryManager {
 
     private PlayerKits2 plugin;
     private ArrayList<KitInventory> inventories;
-    private ArrayList<InventoryPlayer> players;
+    //Players of all the regions open and close inventories at the same time on Folia.
+    private List<InventoryPlayer> players;
     private InventoryRequirementsManager inventoryRequirementsManager;
     private InventoryArrangeManager inventoryArrangeManager;
     public InventoryManager(PlayerKits2 plugin){
         this.plugin = plugin;
-        this.players = new ArrayList<>();
+        this.players = new CopyOnWriteArrayList<>();
         this.inventoryRequirementsManager = new InventoryRequirementsManager(plugin,this);
         this.inventoryArrangeManager = new InventoryArrangeManager(plugin,this);
     }
 
-    public ArrayList<InventoryPlayer> getPlayers() {
+    public List<InventoryPlayer> getPlayers() {
         return players;
     }
 
@@ -89,11 +91,7 @@ public class InventoryManager {
     }
 
     public void removeInventoryPlayer(Player player){
-        for(int i=0;i<players.size();i++){
-            if(players.get(i).getPlayer().equals(player)){
-                players.remove(i);
-            }
-        }
+        players.removeIf(inventoryPlayer -> inventoryPlayer.getPlayer().equals(player));
     }
 
     public void openInventory(InventoryPlayer inventoryPlayer){

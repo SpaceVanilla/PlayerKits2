@@ -7,7 +7,6 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.MainConfigManager;
 import pk.ajneb97.model.Kit;
@@ -19,6 +18,7 @@ import pk.ajneb97.model.item.KitItem;
 import pk.ajneb97.utils.InventoryUtils;
 import pk.ajneb97.utils.ItemUtils;
 import pk.ajneb97.utils.PlayerUtils;
+import pk.ajneb97.utils.SchedulerUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -532,12 +532,7 @@ public class InventoryArrangeManager {
      * The click event is cancelled, so the client is updated with the changes made here.
      */
     private void updateInventoryLater(final Player player){
-        new BukkitRunnable(){
-            @Override
-            public void run() {
-                player.updateInventory();
-            }
-        }.runTaskLater(plugin,1L);
+        SchedulerUtils.runEntityLater(plugin,player,player::updateInventory,1L);
     }
 
     /**

@@ -9,11 +9,11 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.scheduler.BukkitRunnable;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.managers.edit.InventoryEditManager;
 import pk.ajneb97.model.inventory.InventoryPlayer;
 import pk.ajneb97.utils.InventoryUtils;
+import pk.ajneb97.utils.SchedulerUtils;
 
 public class InventoryEditListener implements Listener {
 
@@ -76,12 +76,8 @@ public class InventoryEditListener implements Listener {
         InventoryPlayer inventoryPlayer = invManager.getInventoryPlayer(player);
         if(inventoryPlayer != null) {
             event.setCancelled(true);
-            new BukkitRunnable(){
-                @Override
-                public void run() {
-                    invManager.writeChat(inventoryPlayer, ChatColor.stripColor(event.getMessage()));
-                }
-            }.runTaskLater(plugin,1L);
+            String message = ChatColor.stripColor(event.getMessage());
+            SchedulerUtils.runEntityLater(plugin,player,() -> invManager.writeChat(inventoryPlayer,message),1L);
         }
     }
 }

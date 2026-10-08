@@ -3,14 +3,12 @@ package pk.ajneb97.tasks;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.managers.*;
 import pk.ajneb97.model.inventory.InventoryPlayer;
 import pk.ajneb97.utils.InventoryUtils;
 import pk.ajneb97.utils.ItemUtils;
-
-import java.util.ArrayList;
+import pk.ajneb97.utils.SchedulerUtils;
 
 public class InventoryUpdateTaskManager {
 
@@ -20,43 +18,46 @@ public class InventoryUpdateTaskManager {
     }
 
     public void start(){
-        new BukkitRunnable(){
-            @Override
-            public void run() {
-                execute();
-            }
-        }.runTaskTimer(plugin,0L,20L);
+        SchedulerUtils.runGlobalTimer(plugin,this::execute,0L,20L);
     }
 
     public void execute(){
+        //On Folia the inventory of each player can only be changed by the region that owns the player.
+        for(InventoryPlayer player : plugin.getInventoryManager().getPlayers()){
+            SchedulerUtils.runEntity(plugin,player.getPlayer(),() -> update(player));
+        }
+    }
+
+    private void update(InventoryPlayer player){
         InventoryManager inventoryManager = plugin.getInventoryManager();
         KitsManager kitsManager = plugin.getKitsManager();
         PlayerDataManager playerDataManager = plugin.getPlayerDataManager();
         KitItemManager kitItemManager = plugin.getKitItemManager();
 
-        ArrayList<InventoryPlayer> players = inventoryManager.getPlayers();
-        for(InventoryPlayer player : players){
-            if(player.getArrangeSession() != null){
-                //The items of an inventory that is being arranged must not be moved.
+        if(!inventoryManager.getPlayers().contains(player)){
+            //The inventory was closed before the update could be done.
+            return;
+        }
+        if(player.getArrangeSession() != null){
+            //The items of an inventory that is being arranged must not be moved.
+            return;
+        }
+
+        Inventory inv = InventoryUtils.getTopInventory(player.getPlayer());
+        if(inv == null){
+            return;
+        }
+        ItemStack[] contents = inv.getContents();
+        for(int i=0;i<contents.length;i++){
+            ItemStack item = contents[i];
+            if(item == null || item.getType().equals(Material.AIR)){
                 continue;
             }
 
-            Inventory inv = InventoryUtils.getTopInventory(player.getPlayer());
-            if(inv == null){
-                continue;
-            }
-            ItemStack[] contents = inv.getContents();
-            for(int i=0;i<contents.length;i++){
-                ItemStack item = contents[i];
-                if(item == null || item.getType().equals(Material.AIR)){
-                    continue;
-                }
-
-                String kitName = ItemUtils.getTagStringItem(plugin,item,"playerkits_kit");
-                if(kitName != null){
-                    inventoryManager.setKit(kitName,player.getPlayer(),inv,i,kitsManager,
-                            playerDataManager,kitItemManager,item);
-                }
+            String kitName = ItemUtils.getTagStringItem(plugin,item,"playerkits_kit");
+            if(kitName != null){
+                inventoryManager.setKit(kitName,player.getPlayer(),inv,i,kitsManager,
+                        playerDataManager,kitItemManager,item);
             }
         }
     }

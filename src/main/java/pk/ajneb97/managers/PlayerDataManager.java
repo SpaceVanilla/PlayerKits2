@@ -2,7 +2,6 @@ package pk.ajneb97.managers;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 import pk.ajneb97.PlayerKits2;
 import pk.ajneb97.configs.PlayersConfigManager;
 import pk.ajneb97.database.MySQLConnection;
@@ -11,11 +10,12 @@ import pk.ajneb97.model.PlayerData;
 import pk.ajneb97.model.internal.GenericCallback;
 import pk.ajneb97.model.internal.PlayerKitsMessageResult;
 import pk.ajneb97.utils.OtherUtils;
+import pk.ajneb97.utils.SchedulerUtils;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerDataManager {
 
@@ -25,8 +25,9 @@ public class PlayerDataManager {
 
     public PlayerDataManager(PlayerKits2 plugin){
         this.plugin = plugin;
-        this.players = new HashMap<>();
-        this.playerNames = new HashMap<>();
+        //Players of different regions join, leave and claim kits at the same time on Folia.
+        this.players = new ConcurrentHashMap<>();
+        this.playerNames = new ConcurrentHashMap<>();
     }
 
     public Map<UUID,PlayerData> getPlayers() {
@@ -35,7 +36,9 @@ public class PlayerDataManager {
 
     public void addPlayer(PlayerData p){
         players.put(p.getUuid(),p);
-        playerNames.put(p.getName(), p.getUuid());
+        if(p.getName() != null){
+            playerNames.put(p.getName(), p.getUuid());
+        }
     }
 
     public PlayerData getPlayer(Player player, boolean create){
@@ -64,12 +67,14 @@ public class PlayerDataManager {
 
     public PlayerData getPlayerByName(String name){
         UUID uuid = getPlayerUUID(name);
-        return players.get(uuid);
+        return uuid != null ? players.get(uuid) : null;
     }
 
     public void removePlayer(PlayerData playerData){
         players.remove(playerData.getUuid());
-        playerNames.remove(playerData.getName());
+        if(playerData.getName() != null){
+            playerNames.remove(playerData.getName());
+        }
     }
 
     public void removePlayerByUUID(UUID uuid){
@@ -183,28 +188,22 @@ public class PlayerDataManager {
 
 
     public void resetKitForAllPlayers(String kitName, GenericCallback<PlayerKitsMessageResult> callback){
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                MySQLConnection mySQLConnection = plugin.getMySQLConnection();
-                if (mySQLConnection == null) {
-                    PlayersConfigManager playerConfigsManager = plugin.getConfigsManager().getPlayersConfigManager();
-                    playerConfigsManager.resetKitForAllPlayers(kitName);
+        SchedulerUtils.runAsync(plugin, () -> {
+            MySQLConnection mySQLConnection = plugin.getMySQLConnection();
+            if (mySQLConnection == null) {
+                PlayersConfigManager playerConfigsManager = plugin.getConfigsManager().getPlayersConfigManager();
+                playerConfigsManager.resetKitForAllPlayers(kitName);
+            }
+
+            SchedulerUtils.runGlobal(plugin, () -> {
+                players.values().forEach(p -> p.resetKit(kitName));
+                if(plugin.getMySQLConnection() != null){
+                    plugin.getMySQLConnection().resetKit(null,kitName,true);
                 }
 
-                new BukkitRunnable() {
-                    @Override
-                    public void run() {
-                        players.values().forEach(p -> p.resetKit(kitName));
-                        if(plugin.getMySQLConnection() != null){
-                            plugin.getMySQLConnection().resetKit(null,kitName,true);
-                        }
-
-                        callback.onDone(PlayerKitsMessageResult.success());
-                    }
-                }.runTask(plugin);
-            }
-        }.runTaskAsynchronously(plugin);
+                callback.onDone(PlayerKitsMessageResult.success());
+            });
+        });
     }
 
     public void manageJoin(Player player){
@@ -225,7 +224,7 @@ public class PlayerDataManager {
                     addPlayer(playerData);
 
                     //Create if it doesn't exist + first join kit
-                    mySQLConnection.createPlayer(playerData, () -> plugin.getKitsManager().giveFirstJoinKit(player));
+                    mySQLConnection.createPlayer(playerData, () -> giveFirstJoinKit(player));
                 }
             });
         }else{
@@ -245,10 +244,15 @@ public class PlayerDataManager {
                     addPlayer(playerData);
 
                     // First join kit
-                    plugin.getKitsManager().giveFirstJoinKit(player);
+                    giveFirstJoinKit(player);
                 }
             });
         }
+    }
+
+    private void giveFirstJoinKit(Player player){
+        //The player data is loaded off the thread of the player, which is the only one that can give items to it.
+        SchedulerUtils.runEntity(plugin, player, () -> plugin.getKitsManager().giveFirstJoinKit(player));
     }
 
     public void manageLeave(Player player){
@@ -257,12 +261,8 @@ public class PlayerDataManager {
         if(playerData != null){
             if(plugin.getMySQLConnection() == null) {
                 if(playerData.isModified()){
-                    new BukkitRunnable(){
-                        @Override
-                        public void run() {
-                            plugin.getConfigsManager().getPlayersConfigManager().saveConfig(playerData);
-                        }
-                    }.runTaskAsynchronously(plugin);
+                    SchedulerUtils.runAsync(plugin, () ->
+                            plugin.getConfigsManager().getPlayersConfigManager().saveConfig(playerData));
                 }
             }
 
