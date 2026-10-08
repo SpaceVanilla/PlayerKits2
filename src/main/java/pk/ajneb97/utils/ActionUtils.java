@@ -27,9 +27,12 @@ public class ActionUtils {
         }
     }
 
-    public static void consoleCommand(String actionLine){
-        ConsoleCommandSender sender = Bukkit.getConsoleSender();
-        Bukkit.dispatchCommand(sender, actionLine);
+    public static void consoleCommand(String actionLine, PlayerKits2 plugin){
+        //On Folia the commands of the console can only be dispatched on the global region.
+        SchedulerUtils.runGlobal(plugin, () -> {
+            ConsoleCommandSender sender = Bukkit.getConsoleSender();
+            Bukkit.dispatchCommand(sender, actionLine);
+        });
     }
 
     public static void playerCommand(Player player, String actionLine){
